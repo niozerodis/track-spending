@@ -405,22 +405,14 @@
 
       createApp({
         setup() {
-          // ★★★ 請記得修改這裡的 URL ★★★
+          // ★★★ 請記得修改這裡的 URL (這是你提供的 Apps Script 網址) ★★★
           const API_URL =
             "https://script.google.com/macros/s/AKfycbxau29o3BM5QwjxhWVMcELC6yICw8zlgzr-MpG52Iq1ZLnfXzDUeGJS8fuT53ZrYLqfwA/exec";
 
-          // --- 設定資料 ---
-          const peopleList = ["Nio", "阿凜", "小明", "小華"];
-          const categoryList = [
-            "餐飲",
-            "交通",
-            "購物",
-            "娛樂",
-            "房租",
-            "水電",
-            "其他",
-          ];
-          const bankList = ["現金", "信用卡", "LinePay", "轉帳", "街口"];
+          // --- 設定資料 (動態讀取) ---
+          const peopleList = ref([]);
+          const categoryList = ref([]);
+          const bankList = ref([]);
 
           const items = ref([]);
           const isInitializing = ref(true);
@@ -435,18 +427,16 @@
             item: "",
             date: new Date().toISOString().split("T")[0],
             amount: 0,
-            payer: "Nio",
-            sharedWith: ["Nio", "阿凜"],
+            payer: "",
+            sharedWith: [],
             paidBy: [],
-            category: "餐飲",
-            paymentMethod: "現金",
+            category: "",
+            paymentMethod: "",
             note: "",
           };
           const form = ref({ ...defaultForm });
 
-          // ★ 安全密碼機制 ★
           const getPassword = () => {
-            // 這裡設定一個專屬的 Key，避免跟上一個 App 衝突
             const STORAGE_KEY = "nio_splitwise_secret";
             let pwd = localStorage.getItem(STORAGE_KEY);
             if (!pwd) {
@@ -456,7 +446,6 @@
             return pwd;
           };
 
-          // --- 邏輯計算 ---
           const calcMyPay = computed(() => {
             if (!form.value.amount || form.value.sharedWith.length === 0)
               return 0;
@@ -486,8 +475,7 @@
             return 0;
           });
 
-          // --- 資料處理 ---
-          const personTabs = computed(() => ["全部", ...peopleList]);
+          const personTabs = computed(() => ["全部", ...peopleList.value]);
 
           const filteredItems = computed(() => {
             if (activeTab.value === "全部") return items.value;
@@ -517,9 +505,31 @@
             else form.value.sharedWith.splice(idx, 1);
           };
 
+          // ★ 新增：自動讀取 Google Sheet 下拉選單設定
+          const fetchSettings = async () => {
+            try {
+              const res = await fetch(`${API_URL}?action=get_settings`);
+              const data = await res.json();
+
+              if (data.people) peopleList.value = data.people;
+              if (data.categories) categoryList.value = data.categories;
+              if (data.banks) bankList.value = data.banks;
+
+              // 避免下拉選單空白
+              if (peopleList.value.length > 0)
+                defaultForm.payer = peopleList.value[0];
+              if (categoryList.value.length > 0)
+                defaultForm.category = categoryList.value[0];
+              if (bankList.value.length > 0)
+                defaultForm.paymentMethod = bankList.value[0];
+            } catch (e) {
+              console.error("設定讀取失敗", e);
+            }
+          };
+
           const fetchData = async () => {
             try {
-              const res = await fetch(API_URL); // GET 不需要密碼
+              const res = await fetch(API_URL);
               items.value = await res.json();
             } catch (e) {
               alert("讀取失敗，請檢查網路");
@@ -528,8 +538,13 @@
             }
           };
 
+          // 定義 closeModal 函式
+          const closeModal = () => {
+            showModal.value = false;
+          };
+
           const saveItem = async () => {
-            const userPassword = getPassword(); // ★ 獲取密碼
+            const userPassword = getPassword();
             if (!userPassword) return;
 
             form.value.myPay = calcMyPay.value;
@@ -538,7 +553,7 @@
             isSaving.value = true;
             try {
               const payload = {
-                auth: userPassword, // ★ 傳送密碼
+                auth: userPassword,
                 action: "save",
                 data: isEditing.value
                   ? items.value.map((i) =>
@@ -547,7 +562,6 @@
                   : [form.value, ...items.value],
               };
 
-              // Optimistic UI Update (先更新畫面)
               if (isEditing.value) {
                 const idx = items.value.findIndex(
                   (i) => i.id === form.value.id
@@ -557,7 +571,8 @@
                 form.value.id = Date.now().toString();
                 items.value.unshift({ ...form.value });
               }
-              closeModal();
+
+              closeModal(); // 正常呼叫
 
               const res = await fetch(API_URL, {
                 method: "POST",
@@ -565,7 +580,6 @@
               });
               const result = await res.json();
 
-              // ★ 錯誤處理：如果後端說密碼錯，清除 LocalStorage
               if (
                 result.status === "error" &&
                 result.message &&
@@ -573,12 +587,11 @@
               ) {
                 localStorage.removeItem("nio_splitwise_secret");
                 alert("密碼錯誤，請重新操作");
-                // 回滾 (Reload data)
                 fetchData();
               }
             } catch (e) {
               alert("儲存失敗");
-              fetchData(); // 失敗就重新抓資料
+              fetchData();
             } finally {
               isSaving.value = false;
             }
@@ -590,6 +603,10 @@
               ...defaultForm,
               date: form.value.date,
               sharedWith: ["Nio", "阿凜"],
+              payer: form.value.payer || peopleList.value[0] || "",
+              category: form.value.category || categoryList.value[0] || "",
+              paymentMethod:
+                form.value.paymentMethod || bankList.value[0] || "",
             };
             showModal.value = true;
           };
@@ -600,18 +617,12 @@
             showModal.value = true;
           };
 
-          // 定義關閉 Modal 函式
-          const closeModal = () => {
-            showModal.value = false;
-          };
-
           const deleteItem = async (id) => {
             if (!confirm("確定刪除?")) return;
-
-            const userPassword = getPassword(); // ★ 刪除也需要密碼
+            const userPassword = getPassword();
             if (!userPassword) return;
 
-            const originalItems = [...items.value]; // 備份
+            const originalItems = [...items.value];
             items.value = items.value.filter((i) => i.id !== id);
 
             isSaving.value = true;
@@ -632,7 +643,7 @@
                   localStorage.removeItem("nio_splitwise_secret");
                   alert("密碼錯誤");
                 }
-                items.value = originalItems; // 還原
+                items.value = originalItems;
               }
             } catch (e) {
               alert("刪除失敗");
@@ -645,8 +656,12 @@
           const formatNumber = (n) =>
             n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
-          onMounted(() => fetchData());
+          onMounted(async () => {
+            isInitializing.value = true;
+            await Promise.all([fetchSettings(), fetchData()]);
+          });
 
+          // ★★★ 關鍵修復：這裡把所有東西都 return 出去，包含 closeModal ★★★
           return {
             items,
             peopleList,
