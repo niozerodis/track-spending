@@ -42,8 +42,6 @@
       .no-scrollbar::-webkit-scrollbar {
         display: none;
       }
-
-      /* 強制設定全站最小字體為 16px */
       html,
       body {
         font-size: 16px;
@@ -192,15 +190,20 @@
             >
               <div>
                 <div class="text-base font-bold text-zinc-500 mb-2">
-                  分攤對象 ({{ item.sharedWith.length }}人)
+                  分攤 ({{ item.sharedWith.length }}人)
                 </div>
                 <div class="flex flex-wrap gap-2">
                   <span
                     v-for="p in item.sharedWith"
                     :key="p"
-                    class="text-base px-3 py-1 rounded-lg bg-zinc-800 text-zinc-300 border border-zinc-700/50"
+                    class="text-base px-3 py-1 rounded-lg border flex items-center gap-1"
+                    :class="item.paidBy && item.paidBy.includes(p) ? 'bg-emerald-950 text-emerald-400 border-emerald-900' : 'bg-zinc-800 text-zinc-300 border-zinc-700/50'"
                   >
                     {{ p }}
+                    <i
+                      v-if="item.paidBy && item.paidBy.includes(p)"
+                      class="fa-solid fa-check text-xs ml-1"
+                    ></i>
                   </span>
                 </div>
               </div>
@@ -341,7 +344,7 @@
               <div>
                 <label
                   class="block text-base font-bold text-zinc-500 mb-3 uppercase"
-                  >分攤對象</label
+                  >分攤對象 (誰要付錢?)</label
                 >
                 <div class="flex flex-wrap gap-3">
                   <div
@@ -366,6 +369,28 @@
                     >${{ Math.round(form.amount / (form.sharedWith.length || 1))
                     }}</span
                   >
+                </div>
+              </div>
+
+              <div>
+                <label
+                  class="block text-base font-bold text-zinc-500 mb-3 uppercase"
+                  >已付款 (誰已經還錢了?)</label
+                >
+                <div class="flex flex-wrap gap-3">
+                  <div
+                    v-for="p in peopleList"
+                    :key="'paid-' + p"
+                    @click="togglePaidBy(p)"
+                    class="px-5 py-3 rounded-xl text-base font-bold cursor-pointer border transition select-none flex items-center gap-2"
+                    :class="form.paidBy.includes(p) ? 'bg-emerald-600 text-white border-emerald-500 shadow-md' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-500'"
+                  >
+                    {{ p }}
+                    <i
+                      v-if="form.paidBy.includes(p)"
+                      class="fa-solid fa-check text-sm"
+                    ></i>
+                  </div>
                 </div>
               </div>
 
@@ -463,7 +488,7 @@
             const day = String(d.getDate()).padStart(2, "0");
             return `${year}-${month}-${day}`;
           };
-          // ★★★ 請記得修改這裡的 URL (這是你提供的 Apps Script 網址) ★★★
+          // ★★★ 請記得修改這裡的 URL ★★★
           const API_URL =
             "https://script.google.com/macros/s/AKfycbxau29o3BM5QwjxhWVMcELC6yICw8zlgzr-MpG52Iq1ZLnfXzDUeGJS8fuT53ZrYLqfwA/exec";
 
@@ -562,7 +587,14 @@
             else form.value.sharedWith.splice(idx, 1);
           };
 
-          // ★ 自動讀取 Google Sheet 下拉選單設定
+          // ★ 新增：切換「已付款」狀態的函式
+          const togglePaidBy = (name) => {
+            if (!form.value.paidBy) form.value.paidBy = []; // 防呆
+            const idx = form.value.paidBy.indexOf(name);
+            if (idx === -1) form.value.paidBy.push(name);
+            else form.value.paidBy.splice(idx, 1);
+          };
+
           const fetchSettings = async () => {
             try {
               const res = await fetch(`${API_URL}?action=get_settings`);
@@ -658,6 +690,8 @@
               ...defaultForm,
               date: getTodayDate(),
               sharedWith: [],
+              // ★ 確保 paidBy 被初始化為空陣列
+              paidBy: [],
               payer: form.value.payer || peopleList.value[0] || "",
               category: form.value.category || categoryList.value[0] || "",
               paymentMethod:
@@ -668,7 +702,10 @@
 
           const editItem = (item) => {
             isEditing.value = true;
-            form.value = JSON.parse(JSON.stringify(item));
+            // 讀取時，確保 sharedWith 和 paidBy 都是陣列
+            const data = JSON.parse(JSON.stringify(item));
+            if (!Array.isArray(data.paidBy)) data.paidBy = [];
+            form.value = data;
             showModal.value = true;
           };
 
@@ -732,6 +769,7 @@
             isLoading,
             isSaving,
             toggleShared,
+            togglePaidBy, // ★ 記得 return togglePaidBy
             saveItem,
             openModal,
             editItem,
