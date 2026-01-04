@@ -600,6 +600,11 @@
             showModal.value = true;
           };
 
+          // 定義關閉 Modal 函式
+          const closeModal = () => {
+            showModal.value = false;
+          };
+
           const deleteItem = async (id) => {
             if (!confirm("確定刪除?")) return;
 
@@ -661,6 +666,7 @@
             saveItem,
             openModal,
             editItem,
+            closeModal,
             deleteItem,
             formatNumber,
             calcMyPay,
