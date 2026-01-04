@@ -21,15 +21,15 @@
         color: #e4e4e7;
       }
       ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
+        width: 4px;
+        height: 4px;
       }
       ::-webkit-scrollbar-track {
         background: #18181b;
       }
       ::-webkit-scrollbar-thumb {
         background: #3f3f46;
-        border-radius: 3px;
+        border-radius: 2px;
       }
       .fade-enter-active,
       .fade-leave-active {
@@ -42,64 +42,66 @@
       .no-scrollbar::-webkit-scrollbar {
         display: none;
       }
+
+      /* 設定基礎字體大小，最小 14px */
       html,
       body {
-        font-size: 16px;
+        font-size: 14px;
       }
     </style>
   </head>
   <body>
-    <div id="app" class="min-h-screen pb-32 bg-zinc-950 text-zinc-200">
+    <div id="app" class="min-h-screen pb-20 bg-zinc-950 text-zinc-200">
       <transition name="fade">
         <div
           v-if="isInitializing"
           class="fixed inset-0 z-[9999] bg-zinc-950 flex flex-col items-center justify-center"
         >
-          <i class="fa-solid fa-wallet fa-spin text-6xl text-zinc-400 mb-6"></i>
-          <p
-            class="text-zinc-500 text-base tracking-widest uppercase font-bold"
-          >
+          <i class="fa-solid fa-wallet fa-spin text-4xl text-zinc-500 mb-4"></i>
+          <p class="text-zinc-600 text-xs tracking-widest uppercase font-bold">
             Syncing Data...
           </p>
         </div>
       </transition>
 
-      <nav class="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-40">
+      <nav
+        class="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-40 shadow-sm"
+      >
         <div
-          class="px-6 h-20 flex justify-between items-center max-w-[1200px] mx-auto"
+          class="px-4 h-14 flex justify-between items-center max-w-[1200px] mx-auto"
         >
-          <div class="flex items-center gap-4">
+          <div class="flex items-center gap-3">
             <div
-              class="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center text-zinc-200"
+              class="w-8 h-8 rounded bg-zinc-800 flex items-center justify-center text-zinc-200 border border-zinc-700"
             >
-              <i class="fa-solid fa-comments-dollar text-2xl"></i>
+              <i class="fa-solid fa-comments-dollar text-sm"></i>
             </div>
-            <h1 class="font-bold text-2xl text-white tracking-wide">記帳本</h1>
+            <h1 class="font-bold text-lg text-white tracking-wide">記帳本</h1>
             <span
               v-if="isSaving"
-              class="text-base text-emerald-500 flex items-center font-mono ml-3"
+              class="text-xs text-emerald-500 flex items-center font-mono ml-2"
             >
-              <i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Saving...
+              <i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Saving...
             </span>
           </div>
           <button
             @click="openModal()"
-            class="bg-zinc-100 hover:bg-white text-black px-6 py-3 rounded-xl text-base font-bold transition flex items-center gap-2 shadow-lg shadow-white/10 hover:scale-105 transform duration-200"
+            class="bg-zinc-100 hover:bg-white text-black px-4 py-1.5 rounded text-sm font-bold transition flex items-center gap-1.5 shadow hover:shadow-md"
           >
             <i class="fa-solid fa-plus"></i> 記一筆
           </button>
         </div>
 
         <div
-          class="px-4 overflow-x-auto no-scrollbar border-t border-zinc-800 bg-zinc-900/50 backdrop-blur-sm"
+          class="px-2 overflow-x-auto no-scrollbar border-t border-zinc-800 bg-zinc-900/95 backdrop-blur-sm"
         >
-          <div class="flex gap-3 py-4 max-w-[1200px] mx-auto">
+          <div class="flex gap-2 py-2 max-w-[1200px] mx-auto px-4">
             <button
               v-for="tab in personTabs"
               :key="tab"
               @click="activeTab = tab"
-              :class="activeTab === tab ? 'bg-zinc-100 text-black shadow-md' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'"
-              class="px-6 py-2.5 rounded-full text-base font-bold whitespace-nowrap transition-all duration-300"
+              :class="activeTab === tab ? 'bg-zinc-100 text-black shadow-sm' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 border border-zinc-700'"
+              class="px-4 py-1 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-200"
             >
               {{ tab }}
             </button>
@@ -107,30 +109,32 @@
         </div>
       </nav>
 
-      <div class="max-w-[1200px] mx-auto px-6 mt-8">
-        <div class="grid grid-cols-2 gap-6">
+      <div class="max-w-[1200px] mx-auto px-4 mt-4">
+        <div class="grid grid-cols-2 gap-3">
           <div
-            class="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 shadow-sm"
+            class="bg-zinc-900 px-4 py-3 rounded-lg border border-zinc-800 shadow-sm flex flex-col justify-center"
           >
             <div
-              class="text-base text-zinc-500 uppercase tracking-wider font-bold mb-2"
+              class="text-xs text-zinc-500 uppercase tracking-wider font-bold mb-0.5"
             >
               應付總額 (My Pay)
             </div>
-            <div class="text-3xl sm:text-4xl font-mono font-bold text-rose-400">
+            <div
+              class="text-xl font-mono font-bold text-rose-400 leading-tight"
+            >
               ${{ formatNumber(summary.totalMyPay) }}
             </div>
           </div>
           <div
-            class="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 shadow-sm"
+            class="bg-zinc-900 px-4 py-3 rounded-lg border border-zinc-800 shadow-sm flex flex-col justify-center"
           >
             <div
-              class="text-base text-zinc-500 uppercase tracking-wider font-bold mb-2"
+              class="text-xs text-zinc-500 uppercase tracking-wider font-bold mb-0.5"
             >
               應收總額 (Receive)
             </div>
             <div
-              class="text-3xl sm:text-4xl font-mono font-bold text-emerald-400"
+              class="text-xl font-mono font-bold text-emerald-400 leading-tight"
             >
               ${{ formatNumber(summary.totalMyReceive) }}
             </div>
@@ -138,115 +142,118 @@
         </div>
       </div>
 
-      <div class="max-w-[1200px] mx-auto px-6 mt-8 pb-10">
+      <div class="max-w-[1200px] mx-auto px-4 mt-4 pb-10">
         <div
           v-if="filteredItems.length === 0"
-          class="text-center py-20 text-zinc-600"
+          class="text-center py-12 text-zinc-600"
         >
-          <i class="fa-regular fa-folder-open text-5xl mb-4 opacity-50"></i>
-          <p class="text-lg font-medium">沒有相關紀錄</p>
+          <i class="fa-regular fa-folder-open text-3xl mb-2 opacity-50"></i>
+          <p class="text-sm font-medium">沒有相關紀錄</p>
         </div>
 
-        <div class="space-y-5">
+        <div class="space-y-3">
           <div
             v-for="item in filteredItems"
             :key="item.id"
-            class="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 relative group overflow-hidden shadow-sm hover:border-zinc-600 transition duration-300"
+            class="bg-zinc-900 rounded-lg border border-zinc-800 relative group overflow-hidden hover:border-zinc-600 transition duration-200"
           >
             <div
-              class="absolute left-0 top-0 bottom-0 w-2"
-              :class="item.payer === 'Nio' ? 'bg-emerald-600' : 'bg-rose-600'"
+              class="absolute left-0 top-0 bottom-0 w-1"
+              :class="item.payer === 'Nio' ? 'bg-emerald-500' : 'bg-rose-500'"
             ></div>
 
-            <div class="flex justify-between items-start mb-4 pl-4">
-              <div>
-                <div class="flex items-center gap-3 mb-2">
-                  <h3 class="font-bold text-white text-2xl">{{ item.item }}</h3>
+            <div class="p-3 pl-4">
+              <div class="flex justify-between items-start mb-1">
+                <div class="flex items-center gap-2 overflow-hidden">
+                  <h3 class="font-bold text-white text-base truncate">
+                    {{ item.item }}
+                  </h3>
                   <span
-                    class="text-base px-3 py-1 rounded-lg bg-zinc-800 text-zinc-400 border border-zinc-700"
+                    class="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700 whitespace-nowrap"
                     >{{ item.category }}</span
                   >
                 </div>
-                <div class="text-base text-zinc-500">
-                  {{ item.date }} ·
+                <div class="text-right flex-shrink-0 ml-2">
+                  <div
+                    class="text-lg font-bold text-white font-mono tracking-tight"
+                  >
+                    ${{ formatNumber(item.amount) }}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                class="flex justify-between items-center text-xs text-zinc-500 mb-2.5 border-b border-zinc-800/50 pb-2"
+              >
+                <div>
+                  <span class="font-mono">{{ item.date }}</span> ·
                   <span class="text-zinc-300 font-bold">{{ item.payer }}</span>
                   先付
                 </div>
+                <div>{{ item.paymentMethod }}</div>
               </div>
-              <div class="text-right">
-                <div
-                  class="text-3xl font-bold text-white font-mono tracking-tight"
-                >
-                  ${{ formatNumber(item.amount) }}
-                </div>
-                <div class="text-base text-zinc-500 mt-1">
-                  {{ item.paymentMethod }}
-                </div>
-              </div>
-            </div>
 
-            <div
-              class="pl-4 mt-5 pt-4 border-t border-zinc-800 grid grid-cols-2 gap-6"
-            >
-              <div>
-                <div class="text-base font-bold text-zinc-500 mb-2">
-                  分攤 ({{ item.sharedWith.length }}人)
+              <div class="flex justify-between items-end gap-2">
+                <div class="flex-1">
+                  <div class="flex flex-wrap gap-1.5">
+                    <span
+                      v-for="p in item.sharedWith"
+                      :key="p"
+                      class="text-xs px-2 py-0.5 rounded border flex items-center gap-1 transition-colors duration-200"
+                      :class="item.paidBy && item.paidBy.includes(p) 
+                        ? 'bg-emerald-900/30 text-emerald-400 border-emerald-900/50' 
+                        : 'bg-zinc-800 text-zinc-400 border-zinc-700'"
+                    >
+                      {{ p }}
+                      <i
+                        v-if="item.paidBy && item.paidBy.includes(p)"
+                        class="fa-solid fa-check text-[10px]"
+                      ></i>
+                    </span>
+                  </div>
                 </div>
-                <div class="flex flex-wrap gap-2">
-                  <span
-                    v-for="p in item.sharedWith"
-                    :key="p"
-                    class="text-base px-3 py-1 rounded-lg border flex items-center gap-1"
-                    :class="item.paidBy && item.paidBy.includes(p) ? 'bg-emerald-950 text-emerald-400 border-emerald-900' : 'bg-zinc-800 text-zinc-300 border-zinc-700/50'"
+
+                <div class="text-right flex-shrink-0">
+                  <div
+                    v-if="item.myPay > 0"
+                    class="text-rose-400 font-bold text-sm"
                   >
-                    {{ p }}
-                    <i
-                      v-if="item.paidBy && item.paidBy.includes(p)"
-                      class="fa-solid fa-check text-xs ml-1"
-                    ></i>
-                  </span>
-                </div>
-              </div>
-              <div class="text-right flex flex-col justify-end gap-1">
-                <div
-                  v-if="item.myPay > 0"
-                  class="text-rose-400 font-bold text-lg"
-                >
-                  <span class="text-base text-zinc-500 font-normal mr-2"
-                    >我需付:</span
-                  >${{ formatNumber(item.myPay) }}
-                </div>
-                <div
-                  v-if="item.myReceive > 0"
-                  class="text-emerald-400 font-bold text-lg"
-                >
-                  <span class="text-base text-zinc-500 font-normal mr-2"
-                    >單人攤:</span
-                  >${{ formatNumber(item.myReceive) }}
-                </div>
-                <div
-                  v-if="item.myPay === 0 && item.myReceive === 0"
-                  class="text-zinc-600 text-base italic"
-                >
-                  與我無關
+                    <span class="text-[10px] text-zinc-500 font-normal mr-1"
+                      >我付</span
+                    >${{ formatNumber(item.myPay) }}
+                  </div>
+                  <div
+                    v-if="item.myReceive > 0"
+                    class="text-emerald-400 font-bold text-sm"
+                  >
+                    <span class="text-[10px] text-zinc-500 font-normal mr-1"
+                      >單攤</span
+                    >${{ formatNumber(item.myReceive) }}
+                  </div>
+                  <div
+                    v-if="item.myPay === 0 && item.myReceive === 0"
+                    class="text-zinc-600 text-xs italic"
+                  >
+                    無關
+                  </div>
                 </div>
               </div>
             </div>
 
             <div
-              class="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-3"
+              class="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-zinc-900 pl-2"
             >
               <button
                 @click="editItem(item)"
-                class="w-12 h-12 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 flex items-center justify-center border border-zinc-700 shadow-md transition-transform active:scale-95"
+                class="w-7 h-7 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center border border-zinc-700 transition"
               >
-                <i class="fa-solid fa-pen text-lg"></i>
+                <i class="fa-solid fa-pen text-xs"></i>
               </button>
               <button
                 @click="deleteItem(item.id)"
-                class="w-12 h-12 rounded-full bg-zinc-800 hover:bg-red-900/30 text-red-400 flex items-center justify-center border border-zinc-700 shadow-md transition-transform active:scale-95"
+                class="w-7 h-7 rounded bg-zinc-800 hover:bg-red-900/30 text-zinc-400 hover:text-red-400 flex items-center justify-center border border-zinc-700 transition"
               >
-                <i class="fa-solid fa-trash text-lg"></i>
+                <i class="fa-solid fa-trash text-xs"></i>
               </button>
             </div>
           </div>
@@ -256,60 +263,60 @@
       <transition name="fade">
         <div
           v-if="showModal"
-          class="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-0 sm:p-6"
+          class="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-0 sm:p-4"
         >
           <div
             class="fixed inset-0 bg-black/80 backdrop-blur-sm"
             @click="closeModal()"
           ></div>
           <div
-            class="bg-zinc-900 w-full max-w-2xl rounded-t-3xl sm:rounded-3xl border border-zinc-800 shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto"
+            class="bg-zinc-900 w-full max-w-md rounded-t-xl sm:rounded-xl border border-zinc-800 shadow-2xl relative z-10 max-h-[95vh] overflow-y-auto"
           >
             <div
-              class="sticky top-0 bg-zinc-900/95 backdrop-blur border-b border-zinc-800 p-6 flex justify-between items-center z-20"
+              class="sticky top-0 bg-zinc-900/95 backdrop-blur border-b border-zinc-800 px-4 py-3 flex justify-between items-center z-20"
             >
-              <h3 class="font-bold text-2xl text-white">
+              <h3 class="font-bold text-lg text-white">
                 {{ isEditing ? '編輯帳務' : '新增帳務' }}
               </h3>
               <button
                 @click="closeModal()"
-                class="w-10 h-10 rounded-full bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition"
+                class="w-7 h-7 rounded-full bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition"
               >
-                <i class="fa-solid fa-xmark text-xl"></i>
+                <i class="fa-solid fa-xmark text-sm"></i>
               </button>
             </div>
 
-            <form @submit.prevent="saveItem" class="p-8 space-y-8">
-              <div class="grid grid-cols-2 gap-6">
+            <form @submit.prevent="saveItem" class="p-5 space-y-4">
+              <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label
-                    class="block text-base font-bold text-zinc-500 mb-2 uppercase"
+                    class="block text-xs font-bold text-zinc-500 mb-1 uppercase"
                     >日期</label
                   >
                   <input
                     v-model="form.date"
                     type="date"
                     required
-                    class="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-4 text-lg text-white focus:border-white outline-none [color-scheme:dark]"
+                    class="w-full bg-zinc-800 border border-zinc-700 rounded p-2.5 text-sm text-white focus:border-zinc-500 outline-none [color-scheme:dark]"
                   />
                 </div>
                 <div>
                   <label
-                    class="block text-base font-bold text-zinc-500 mb-2 uppercase"
+                    class="block text-xs font-bold text-zinc-500 mb-1 uppercase"
                     >金額</label
                   >
                   <input
                     v-model.number="form.amount"
                     type="number"
                     required
-                    class="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-4 text-lg text-white focus:border-white outline-none font-mono font-bold tracking-wide"
+                    class="w-full bg-zinc-800 border border-zinc-700 rounded p-2.5 text-sm text-white focus:border-zinc-500 outline-none font-mono font-bold tracking-wide"
                   />
                 </div>
               </div>
 
               <div>
                 <label
-                  class="block text-base font-bold text-zinc-500 mb-2 uppercase"
+                  class="block text-xs font-bold text-zinc-500 mb-1 uppercase"
                   >項目名稱</label
                 >
                 <input
@@ -317,155 +324,141 @@
                   type="text"
                   required
                   placeholder="例如：晚餐、房租"
-                  class="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-4 text-lg text-white focus:border-white outline-none placeholder-zinc-600"
+                  class="w-full bg-zinc-800 border border-zinc-700 rounded p-2.5 text-sm text-white focus:border-zinc-500 outline-none placeholder-zinc-600"
                 />
               </div>
 
-              <div>
-                <label
-                  class="block text-base font-bold text-zinc-500 mb-2 uppercase"
-                  >付款人</label
-                >
-                <div class="relative">
-                  <select
-                    v-model="form.payer"
-                    class="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-4 text-lg text-white focus:border-white outline-none appearance-none cursor-pointer"
-                  >
-                    <option v-for="p in peopleList" :value="p">{{ p }}</option>
-                  </select>
-                  <div
-                    class="absolute inset-y-0 right-4 flex items-center pointer-events-none text-zinc-500"
-                  >
-                    <i class="fa-solid fa-chevron-down text-base"></i>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label
-                  class="block text-base font-bold text-zinc-500 mb-3 uppercase"
-                  >分攤對象 (誰要付錢?)</label
-                >
-                <div class="flex flex-wrap gap-3">
-                  <div
-                    v-for="p in peopleList"
-                    :key="p"
-                    @click="toggleShared(p)"
-                    class="px-5 py-3 rounded-xl text-base font-bold cursor-pointer border transition select-none flex items-center gap-2"
-                    :class="form.sharedWith.includes(p) ? 'bg-zinc-100 text-black border-white shadow-md' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-500'"
-                  >
-                    {{ p }}
-                    <i
-                      v-if="form.sharedWith.includes(p)"
-                      class="fa-solid fa-check text-sm"
-                    ></i>
-                  </div>
-                </div>
-                <div
-                  class="text-base text-zinc-500 mt-3 text-right font-medium"
-                >
-                  每人分攤
-                  <span class="text-zinc-300 font-mono text-lg"
-                    >${{ Math.round(form.amount / (form.sharedWith.length || 1))
-                    }}</span
-                  >
-                </div>
-              </div>
-
-              <div>
-                <label
-                  class="block text-base font-bold text-zinc-500 mb-3 uppercase"
-                  >已付款 (誰已經還錢了?)</label
-                >
-                <div class="flex flex-wrap gap-3">
-                  <div
-                    v-for="p in peopleList"
-                    :key="'paid-' + p"
-                    @click="togglePaidBy(p)"
-                    class="px-5 py-3 rounded-xl text-base font-bold cursor-pointer border transition select-none flex items-center gap-2"
-                    :class="form.paidBy.includes(p) ? 'bg-emerald-600 text-white border-emerald-500 shadow-md' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-500'"
-                  >
-                    {{ p }}
-                    <i
-                      v-if="form.paidBy.includes(p)"
-                      class="fa-solid fa-check text-sm"
-                    ></i>
-                  </div>
-                </div>
-              </div>
-
-              <div class="grid grid-cols-2 gap-6">
+              <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label
-                    class="block text-base font-bold text-zinc-500 mb-2 uppercase"
-                    >類型</label
+                    class="block text-xs font-bold text-zinc-500 mb-1 uppercase"
+                    >付款人</label
+                  >
+                  <div class="relative">
+                    <select
+                      v-model="form.payer"
+                      class="w-full bg-zinc-800 border border-zinc-700 rounded p-2.5 text-sm text-white focus:border-zinc-500 outline-none appearance-none cursor-pointer"
+                    >
+                      <option v-for="p in peopleList" :value="p">
+                        {{ p }}
+                      </option>
+                    </select>
+                    <div
+                      class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-500"
+                    >
+                      <i class="fa-solid fa-chevron-down text-xs"></i>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label
+                    class="block text-xs font-bold text-zinc-500 mb-1 uppercase"
+                    >分類</label
                   >
                   <div class="relative">
                     <select
                       v-model="form.category"
-                      class="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-4 text-lg text-white focus:border-white outline-none appearance-none cursor-pointer"
+                      class="w-full bg-zinc-800 border border-zinc-700 rounded p-2.5 text-sm text-white focus:border-zinc-500 outline-none appearance-none cursor-pointer"
                     >
                       <option v-for="c in categoryList" :value="c">
                         {{ c }}
                       </option>
                     </select>
                     <div
-                      class="absolute inset-y-0 right-4 flex items-center pointer-events-none text-zinc-500"
+                      class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-500"
                     >
-                      <i class="fa-solid fa-chevron-down text-base"></i>
+                      <i class="fa-solid fa-chevron-down text-xs"></i>
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <div class="bg-zinc-950/50 p-3 rounded border border-zinc-800/50">
+                <label
+                  class="block text-xs font-bold text-zinc-500 mb-2 uppercase"
+                  >分攤對象
+                  <span class="text-zinc-600 font-normal normal-case"
+                    >(每人 ${{ Math.round(form.amount / (form.sharedWith.length
+                    || 1)) }})</span
+                  ></label
+                >
+                <div class="flex flex-wrap gap-2">
+                  <div
+                    v-for="p in peopleList"
+                    :key="p"
+                    @click="toggleShared(p)"
+                    class="px-3 py-1.5 rounded text-xs font-bold cursor-pointer border transition select-none flex items-center gap-1"
+                    :class="form.sharedWith.includes(p) ? 'bg-zinc-100 text-black border-white' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-500'"
+                  >
+                    {{ p }}
+                    <i
+                      v-if="form.sharedWith.includes(p)"
+                      class="fa-solid fa-check text-[10px]"
+                    ></i>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-zinc-950/50 p-3 rounded border border-zinc-800/50">
+                <label
+                  class="block text-xs font-bold text-zinc-500 mb-2 uppercase"
+                  >已還款</label
+                >
+                <div class="flex flex-wrap gap-2">
+                  <div
+                    v-for="p in peopleList"
+                    :key="'paid-'+p"
+                    @click="togglePaidBy(p)"
+                    class="px-3 py-1.5 rounded text-xs font-bold cursor-pointer border transition select-none flex items-center gap-1"
+                    :class="form.paidBy.includes(p) ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-500'"
+                  >
+                    {{ p }}
+                    <i
+                      v-if="form.paidBy.includes(p)"
+                      class="fa-solid fa-check text-[10px]"
+                    ></i>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-3">
                 <div>
                   <label
-                    class="block text-base font-bold text-zinc-500 mb-2 uppercase"
+                    class="block text-xs font-bold text-zinc-500 mb-1 uppercase"
                     >付款方式</label
                   >
                   <div class="relative">
                     <select
                       v-model="form.paymentMethod"
-                      class="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-4 text-lg text-white focus:border-white outline-none appearance-none cursor-pointer"
+                      class="w-full bg-zinc-800 border border-zinc-700 rounded p-2.5 text-sm text-white focus:border-zinc-500 outline-none appearance-none cursor-pointer"
                     >
                       <option v-for="b in bankList" :value="b">{{ b }}</option>
                     </select>
                     <div
-                      class="absolute inset-y-0 right-4 flex items-center pointer-events-none text-zinc-500"
+                      class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-500"
                     >
-                      <i class="fa-solid fa-chevron-down text-base"></i>
+                      <i class="fa-solid fa-chevron-down text-xs"></i>
                     </div>
                   </div>
                 </div>
+                <div>
+                  <label
+                    class="block text-xs font-bold text-zinc-500 mb-1 uppercase"
+                    >備註</label
+                  >
+                  <textarea
+                    v-model="form.note"
+                    rows="1"
+                    class="w-full bg-zinc-800 border border-zinc-700 rounded p-2.5 text-sm text-white focus:border-zinc-500 outline-none placeholder-zinc-600"
+                    placeholder="選填..."
+                  ></textarea>
+                </div>
               </div>
 
-              <div>
-                <label
-                  class="block text-base font-bold text-zinc-500 mb-2 uppercase"
-                  >備註</label
-                >
-                <textarea
-                  v-model="form.note"
-                  rows="2"
-                  class="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-4 text-lg text-white focus:border-white outline-none placeholder-zinc-600"
-                  placeholder="選填..."
-                ></textarea>
-              </div>
-
-              <div
-                class="bg-zinc-950 p-5 rounded-2xl border border-zinc-800 flex justify-between text-base font-medium"
-              >
-                <span :class="calcMyPay > 0 ? 'text-rose-400' : 'text-zinc-600'"
-                  >我要付: ${{ calcMyPay }}</span
-                >
-                <span
-                  :class="calcMyReceive > 0 ? 'text-emerald-400' : 'text-zinc-600'"
-                  >我要收 (單): ${{ calcMyReceive }}</span
-                >
-              </div>
-
-              <div class="pt-4 pb-4">
+              <div class="pt-2">
                 <button
                   type="submit"
-                  class="w-full bg-white hover:bg-zinc-200 text-black py-4 rounded-xl font-bold text-lg transition shadow-lg transform active:scale-[0.99]"
+                  class="w-full bg-white hover:bg-zinc-200 text-black py-3 rounded-lg font-bold text-sm transition shadow-lg transform active:scale-[0.99]"
                 >
                   {{ isEditing ? '儲存修改' : '新增紀錄' }}
                 </button>
@@ -488,7 +481,7 @@
             const day = String(d.getDate()).padStart(2, "0");
             return `${year}-${month}-${day}`;
           };
-          // ★★★ 請記得修改這裡的 URL ★★★
+          // ★★★ 請記得修改這裡的 URL (這是你提供的 Apps Script 網址) ★★★
           const API_URL =
             "https://script.google.com/macros/s/AKfycbxau29o3BM5QwjxhWVMcELC6yICw8zlgzr-MpG52Iq1ZLnfXzDUeGJS8fuT53ZrYLqfwA/exec";
 
@@ -559,9 +552,16 @@
 
           const personTabs = computed(() => ["全部", ...peopleList.value]);
 
+          // ★★★ 新增過濾器：過濾掉沒有名稱的幽靈資料 ★★★
           const filteredItems = computed(() => {
-            if (activeTab.value === "全部") return items.value;
-            return items.value.filter(
+            // 先過濾掉壞資料 (沒有 item 的)
+            const validItems = items.value.filter(
+              (i) => i.item && i.item.toString().trim() !== ""
+            );
+
+            if (activeTab.value === "全部") return validItems;
+
+            return validItems.filter(
               (i) =>
                 i.payer === activeTab.value ||
                 i.sharedWith.includes(activeTab.value)
@@ -587,9 +587,8 @@
             else form.value.sharedWith.splice(idx, 1);
           };
 
-          // ★ 新增：切換「已付款」狀態的函式
           const togglePaidBy = (name) => {
-            if (!form.value.paidBy) form.value.paidBy = []; // 防呆
+            if (!form.value.paidBy) form.value.paidBy = [];
             const idx = form.value.paidBy.indexOf(name);
             if (idx === -1) form.value.paidBy.push(name);
             else form.value.paidBy.splice(idx, 1);
@@ -690,7 +689,6 @@
               ...defaultForm,
               date: getTodayDate(),
               sharedWith: [],
-              // ★ 確保 paidBy 被初始化為空陣列
               paidBy: [],
               payer: form.value.payer || peopleList.value[0] || "",
               category: form.value.category || categoryList.value[0] || "",
@@ -702,7 +700,6 @@
 
           const editItem = (item) => {
             isEditing.value = true;
-            // 讀取時，確保 sharedWith 和 paidBy 都是陣列
             const data = JSON.parse(JSON.stringify(item));
             if (!Array.isArray(data.paidBy)) data.paidBy = [];
             form.value = data;
@@ -769,7 +766,7 @@
             isLoading,
             isSaving,
             toggleShared,
-            togglePaidBy, // ★ 記得 return togglePaidBy
+            togglePaidBy,
             saveItem,
             openModal,
             editItem,
