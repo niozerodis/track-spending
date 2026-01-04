@@ -14,6 +14,7 @@
       rel="stylesheet"
     />
     <style>
+      /* 工業灰配色設定 */
       body {
         font-family: "Segoe UI", Microsoft JhengHei, sans-serif;
         background-color: #09090b;
@@ -38,7 +39,6 @@
       .fade-leave-to {
         opacity: 0;
       }
-      /* 隱藏多選 select 的預設樣式 */
       .no-scrollbar::-webkit-scrollbar {
         display: none;
       }
@@ -69,6 +69,12 @@
               <i class="fa-solid fa-comments-dollar"></i>
             </div>
             <h1 class="font-bold text-lg text-white tracking-wide">記帳本</h1>
+            <span
+              v-if="isSaving"
+              class="text-xs text-emerald-500 flex items-center font-mono ml-2"
+            >
+              <i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Saving...
+            </span>
           </div>
           <button
             @click="openModal()"
@@ -295,7 +301,7 @@
 
               <div>
                 <label class="block text-xs font-bold text-zinc-500 mb-1"
-                  >付款人 (誰先墊錢?)</label
+                  >付款人</label
                 >
                 <select
                   v-model="form.payer"
@@ -307,7 +313,7 @@
 
               <div>
                 <label class="block text-xs font-bold text-zinc-500 mb-2"
-                  >分攤對象 (誰要付錢?)</label
+                  >分攤對象</label
                 >
                 <div class="flex flex-wrap gap-2">
                   <div
@@ -325,8 +331,8 @@
                   </div>
                 </div>
                 <div class="text-[10px] text-zinc-500 mt-1 text-right">
-                  共 {{ form.sharedWith.length }} 人分攤，每人 ${{
-                  Math.round(form.amount / (form.sharedWith.length || 1)) }}
+                  每人 ${{ Math.round(form.amount / (form.sharedWith.length ||
+                  1)) }}
                 </div>
               </div>
 
@@ -376,7 +382,7 @@
                 >
                 <span
                   :class="calcMyReceive > 0 ? 'text-emerald-400' : 'text-zinc-600'"
-                  >我要收 (單人): ${{ calcMyReceive }}</span
+                  >我要收 (單): ${{ calcMyReceive }}</span
                 >
               </div>
 
@@ -399,12 +405,12 @@
 
       createApp({
         setup() {
+          // ★★★ 請記得修改這裡的 URL ★★★
           const API_URL =
-            "https://script.google.com/macros/s/AKfycbyg9Xy7-lXQ5-P89Q8K5j-999999999/exec"; // ★ 請換成你的 URL
-          const API_SECRET = "nio_account_secret"; // 必須與後端一致
+            "https://script.google.com/macros/s/AKfycbxau29o3BM5QwjxhWVMcELC6yICw8zlgzr-MpG52Iq1ZLnfXzDUeGJS8fuT53ZrYLqfwA/exec";
 
           // --- 設定資料 ---
-          const peopleList = ["Nio", "阿凜", "小明", "小華"]; // ★ 自訂你的人名清單
+          const peopleList = ["Nio", "阿凜", "小明", "小華"];
           const categoryList = [
             "餐飲",
             "交通",
@@ -419,18 +425,18 @@
           const items = ref([]);
           const isInitializing = ref(true);
           const isLoading = ref(false);
+          const isSaving = ref(false);
           const showModal = ref(false);
           const isEditing = ref(false);
-          const activeTab = ref("全部"); // 當前分頁
+          const activeTab = ref("全部");
 
-          // 表單預設值
           const defaultForm = {
             id: null,
             item: "",
             date: new Date().toISOString().split("T")[0],
             amount: 0,
             payer: "Nio",
-            sharedWith: ["Nio", "阿凜"], // 預設大家分
+            sharedWith: ["Nio", "阿凜"],
             paidBy: [],
             category: "餐飲",
             paymentMethod: "現金",
@@ -438,53 +444,53 @@
           };
           const form = ref({ ...defaultForm });
 
-          // --- 核心邏輯計算 ---
+          // ★ 安全密碼機制 ★
+          const getPassword = () => {
+            // 這裡設定一個專屬的 Key，避免跟上一個 App 衝突
+            const STORAGE_KEY = "nio_splitwise_secret";
+            let pwd = localStorage.getItem(STORAGE_KEY);
+            if (!pwd) {
+              pwd = prompt("請輸入管理員密碼：");
+              if (pwd) localStorage.setItem(STORAGE_KEY, pwd);
+            }
+            return pwd;
+          };
 
-          // 計算邏輯：我要付款 (預覽用)
+          // --- 邏輯計算 ---
           const calcMyPay = computed(() => {
             if (!form.value.amount || form.value.sharedWith.length === 0)
               return 0;
             const unitPrice = Math.round(
               form.value.amount / form.value.sharedWith.length
             );
-
-            // 規則 1: 分攤對象有 Nio 且 付款人也是 Nio => 0
             if (
               form.value.sharedWith.includes("Nio") &&
               form.value.payer === "Nio"
             )
               return 0;
-
-            // 規則 1: 分攤對象有 Nio 且 付款人不是 Nio => 單價
             if (
               form.value.sharedWith.includes("Nio") &&
               form.value.payer !== "Nio"
             )
               return unitPrice;
-
             return 0;
           });
 
-          // 計算邏輯：我要收款 (預覽用)
           const calcMyReceive = computed(() => {
             if (!form.value.amount || form.value.sharedWith.length === 0)
               return 0;
             const unitPrice = Math.round(
               form.value.amount / form.value.sharedWith.length
             );
-
-            // 規則 2: 付款人是 Nio => 顯示單價
             if (form.value.payer === "Nio") return unitPrice;
-
             return 0;
           });
 
-          // --- 資料篩選 ---
+          // --- 資料處理 ---
           const personTabs = computed(() => ["全部", ...peopleList]);
 
           const filteredItems = computed(() => {
             if (activeTab.value === "全部") return items.value;
-            // 篩選邏輯：分頁名字 是 付款人 或 在分攤名單中
             return items.value.filter(
               (i) =>
                 i.payer === activeTab.value ||
@@ -498,30 +504,13 @@
               (sum, i) => sum + (Number(i.myPay) || 0),
               0
             );
-
-            // 這裡的收款總額邏輯比較複雜：
-            // 如果顯示的是 "Nio" 的頁面，我想知道 Nio 總共該收多少錢
-            // Nio 該收 = (Nio先付的總額) - (Nio自己該分攤的部分)
-            // 但依照 prompt 需求，"我要收款" 欄位只存 "單價"。
-            // 為了讓統計有意義，我們先簡單加總 "myReceive" 欄位（即單價總和，這其實沒什麼意義），
-            // 或是更聰明地：如果我是 Nio，我付了 100，分給 2 人(含我)，單價 50。我該收別人的錢是 50。
-            // 依照你的 prompt 定義，myReceive 欄位存的是單價。
-            // 這裡我們先依欄位加總，若需更精確邏輯可再調整。
             const totalMyReceive = list.reduce((sum, i) => {
-              // 只有當我是付款人時，myReceive 才有值
-              if (i.payer === "Nio") {
-                // 真正的應收總額 = 單價 * (分攤人數 - 1(我自己))
-                // 但若分攤人不含我，則 = 單價 * 分攤人數
-                // 這裡暫時只加總欄位值
-                return sum + (Number(i.myReceive) || 0);
-              }
+              if (i.payer === "Nio") return sum + (Number(i.myReceive) || 0);
               return sum;
             }, 0);
-
             return { totalMyPay, totalMyReceive };
           });
 
-          // --- 操作 ---
           const toggleShared = (name) => {
             const idx = form.value.sharedWith.indexOf(name);
             if (idx === -1) form.value.sharedWith.push(name);
@@ -530,24 +519,26 @@
 
           const fetchData = async () => {
             try {
-              const res = await fetch(API_URL);
+              const res = await fetch(API_URL); // GET 不需要密碼
               items.value = await res.json();
             } catch (e) {
-              alert("讀取失敗");
+              alert("讀取失敗，請檢查網路");
             } finally {
               isInitializing.value = false;
             }
           };
 
           const saveItem = async () => {
-            // 寫入前，將計算結果存入欄位
+            const userPassword = getPassword(); // ★ 獲取密碼
+            if (!userPassword) return;
+
             form.value.myPay = calcMyPay.value;
             form.value.myReceive = calcMyReceive.value;
 
-            isLoading.value = true;
+            isSaving.value = true;
             try {
               const payload = {
-                auth: API_SECRET,
+                auth: userPassword, // ★ 傳送密碼
                 action: "save",
                 data: isEditing.value
                   ? items.value.map((i) =>
@@ -556,7 +547,7 @@
                   : [form.value, ...items.value],
               };
 
-              // 本地先更新 UI
+              // Optimistic UI Update (先更新畫面)
               if (isEditing.value) {
                 const idx = items.value.findIndex(
                   (i) => i.id === form.value.id
@@ -568,20 +559,33 @@
               }
               closeModal();
 
-              await fetch(API_URL, {
+              const res = await fetch(API_URL, {
                 method: "POST",
                 body: JSON.stringify(payload),
               });
+              const result = await res.json();
+
+              // ★ 錯誤處理：如果後端說密碼錯，清除 LocalStorage
+              if (
+                result.status === "error" &&
+                result.message &&
+                result.message.includes("密碼")
+              ) {
+                localStorage.removeItem("nio_splitwise_secret");
+                alert("密碼錯誤，請重新操作");
+                // 回滾 (Reload data)
+                fetchData();
+              }
             } catch (e) {
               alert("儲存失敗");
+              fetchData(); // 失敗就重新抓資料
             } finally {
-              isLoading.value = false;
+              isSaving.value = false;
             }
           };
 
           const openModal = () => {
             isEditing.value = false;
-            // 每次打開重置表單，但保留日期
             form.value = {
               ...defaultForm,
               date: form.value.date,
@@ -592,30 +596,44 @@
 
           const editItem = (item) => {
             isEditing.value = true;
-            // 深拷貝避免直接影響列表
             form.value = JSON.parse(JSON.stringify(item));
             showModal.value = true;
           };
 
           const deleteItem = async (id) => {
             if (!confirm("確定刪除?")) return;
+
+            const userPassword = getPassword(); // ★ 刪除也需要密碼
+            if (!userPassword) return;
+
+            const originalItems = [...items.value]; // 備份
             items.value = items.value.filter((i) => i.id !== id);
-            // 發送刪除請求 (這裡共用 save 邏輯，直接覆蓋整張表)
-            isLoading.value = true;
+
+            isSaving.value = true;
             try {
               const payload = {
-                auth: API_SECRET,
+                auth: userPassword,
                 action: "save",
                 data: items.value,
               };
-              await fetch(API_URL, {
+              const res = await fetch(API_URL, {
                 method: "POST",
                 body: JSON.stringify(payload),
               });
+              const result = await res.json();
+
+              if (result.status === "error") {
+                if (result.message.includes("密碼")) {
+                  localStorage.removeItem("nio_splitwise_secret");
+                  alert("密碼錯誤");
+                }
+                items.value = originalItems; // 還原
+              }
             } catch (e) {
               alert("刪除失敗");
+              items.value = originalItems;
             } finally {
-              isLoading.value = false;
+              isSaving.value = false;
             }
           };
 
@@ -638,6 +656,7 @@
             form,
             isInitializing,
             isLoading,
+            isSaving,
             toggleShared,
             saveItem,
             openModal,
