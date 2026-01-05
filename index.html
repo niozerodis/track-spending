@@ -194,10 +194,12 @@
                   <input v-model.number="form.amount" type="number" required class="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-base text-white focus:border-zinc-500 outline-none font-mono font-bold tracking-wide">
                 </div>
               </div>
+
               <div>
                 <label class="block text-xs font-bold text-zinc-500 mb-1 uppercase">項目名稱</label>
                 <input v-model="form.item" type="text" required class="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-base text-white focus:border-zinc-500 outline-none">
               </div>
+
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label class="block text-xs font-bold text-zinc-500 mb-1 uppercase">付款人</label>
@@ -218,6 +220,7 @@
                   </div>
                 </div>
               </div>
+
               <div class="bg-zinc-950/50 p-3 rounded border border-zinc-800/50">
                 <label class="block text-xs font-bold text-zinc-500 mb-2 uppercase">分攤對象 <span class="text-zinc-600 font-normal normal-case">(每人 ${{ Math.round(form.amount / (form.sharedWith.length || 1)) }})</span></label>
                 <div class="flex flex-wrap gap-2">
@@ -226,6 +229,7 @@
                   </div>
                 </div>
               </div>
+
               <div class="bg-zinc-950/50 p-3 rounded border border-zinc-800/50">
                 <label class="block text-xs font-bold text-zinc-500 mb-2 uppercase">已還款</label>
                 <div class="flex flex-wrap gap-2">
@@ -234,6 +238,7 @@
                   </div>
                 </div>
               </div>
+
               <div class="grid grid-cols-1 gap-3">
                 <div>
                   <label class="block text-xs font-bold text-zinc-500 mb-1 uppercase">付款方式</label>
@@ -249,6 +254,7 @@
                   <textarea v-model="form.note" rows="1" class="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-base text-white focus:border-zinc-500 outline-none placeholder-zinc-600" placeholder="選填..."></textarea>
                 </div>
               </div>
+
               <div class="pt-2">
                 <button type="submit" class="w-full bg-white hover:bg-zinc-200 text-black py-3 rounded-lg font-bold text-base transition shadow-lg transform active:scale-[0.99]">
                   {{ isEditing ? '儲存修改' : '新增紀錄' }}
@@ -263,6 +269,7 @@
         <div v-if="showBatchModal" class="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-0 sm:p-4">
           <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" @click="closeBatchModal()"></div>
           <div class="bg-zinc-900 w-full max-w-3xl rounded-t-xl sm:rounded-xl border border-zinc-800 shadow-2xl relative z-10 max-h-[95vh] flex flex-col">
+            
             <div class="sticky top-0 bg-zinc-900/95 backdrop-blur border-b border-zinc-800 px-4 py-3 flex justify-between items-center z-20 shrink-0">
               <div class="flex items-center gap-2">
                 <i class="fa-solid fa-layer-group text-emerald-400"></i>
@@ -270,34 +277,94 @@
               </div>
               <button @click="closeBatchModal()" class="w-8 h-8 rounded bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition"><i class="fa-solid fa-xmark text-sm"></i></button>
             </div>
+
             <div class="overflow-y-auto p-5 space-y-6">
+              
               <div class="bg-zinc-950/50 p-4 rounded-xl border border-zinc-800/50 space-y-3">
                 <div class="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">統一設定</div>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div class="col-span-2 sm:col-span-1"><label class="block text-xs font-bold text-zinc-500 mb-1">日期</label><input v-model="batchForm.date" type="date" class="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-sm text-white focus:border-emerald-500 outline-none [color-scheme:dark]"></div>
-                  <div class="col-span-2 sm:col-span-1"><label class="block text-xs font-bold text-zinc-500 mb-1">分類 (預設第一項)</label><select v-model="batchForm.category" class="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-sm text-white focus:border-emerald-500 outline-none"><option v-for="c in categoryList" :value="c">{{ c }}</option></select></div>
-                  <div class="col-span-1"><label class="block text-xs font-bold text-zinc-500 mb-1">付款人</label><select v-model="batchForm.payer" class="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-sm text-white focus:border-emerald-500 outline-none"><option v-for="p in peopleList" :value="p">{{ p }}</option></select></div>
-                  <div class="col-span-1"><label class="block text-xs font-bold text-zinc-500 mb-1">付款方式</label><select v-model="batchForm.paymentMethod" class="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-sm text-white focus:border-emerald-500 outline-none"><option v-for="b in bankList" :value="b">{{ b }}</option></select></div>
-                </div>
-              </div>
-              <div class="space-y-2">
-                <div class="flex justify-between items-center px-1"><div class="text-xs font-bold text-zinc-500 uppercase tracking-wider">消費明細</div><button @click="addBatchRow()" class="text-xs bg-emerald-900/30 text-emerald-400 border border-emerald-900/50 px-2 py-1 rounded hover:bg-emerald-900/50 transition"><i class="fa-solid fa-plus mr-1"></i>新增一列</button></div>
-                <div v-for="(item, index) in batchList" :key="index" class="bg-zinc-900 border border-zinc-800 p-3 rounded-lg relative group">
-                  <button @click="removeBatchRow(index)" class="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-rose-500 sm:hidden z-10 w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-trash"></i></button>
-                  <div class="grid grid-cols-12 gap-2 sm:gap-3 items-center pr-8 sm:pr-0">
-                    <div class="col-span-8 sm:col-span-3"><input v-model="item.name" type="text" placeholder="品項" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm text-white focus:border-emerald-500 outline-none"></div>
-                    <div class="col-span-4 sm:col-span-2"><input v-model.number="item.amount" type="number" placeholder="$" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm text-white font-mono focus:border-emerald-500 outline-none"></div>
-                    <div class="col-span-7 sm:col-span-3"><input v-model="item.note" type="text" placeholder="備註 (選填)" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm text-zinc-400 focus:border-emerald-500 outline-none"></div>
-                    <div class="col-span-5 sm:col-span-3"><select v-model="item.owner" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm text-white focus:border-emerald-500 outline-none"><option value="" disabled>是誰的?</option><option v-for="p in peopleList" :value="p">{{ p }}</option></select></div>
-                    <div class="hidden sm:flex col-span-1 justify-center"><button @click="removeBatchRow(index)" class="w-8 h-8 rounded hover:bg-rose-950/30 text-zinc-600 hover:text-rose-500 transition flex items-center justify-center"><i class="fa-solid fa-trash"></i></button></div>
+                  <div class="col-span-2 sm:col-span-1">
+                    <label class="block text-xs font-bold text-zinc-500 mb-1">日期</label>
+                    <input v-model="batchForm.date" type="date" class="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-sm text-white focus:border-emerald-500 outline-none [color-scheme:dark]">
+                  </div>
+                  <div class="col-span-2 sm:col-span-1">
+                    <label class="block text-xs font-bold text-zinc-500 mb-1">分類</label>
+                    <select v-model="batchForm.category" class="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-sm text-white focus:border-emerald-500 outline-none">
+                      <option v-for="c in categoryList" :value="c">{{ c }}</option>
+                    </select>
+                  </div>
+                  <div class="col-span-1">
+                    <label class="block text-xs font-bold text-zinc-500 mb-1">付款人</label>
+                    <select v-model="batchForm.payer" class="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-sm text-white focus:border-emerald-500 outline-none">
+                      <option v-for="p in peopleList" :value="p">{{ p }}</option>
+                    </select>
+                  </div>
+                  <div class="col-span-1">
+                    <label class="block text-xs font-bold text-zinc-500 mb-1">付款方式</label>
+                    <select v-model="batchForm.paymentMethod" class="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-sm text-white focus:border-emerald-500 outline-none">
+                      <option v-for="b in bankList" :value="b">{{ b }}</option>
+                    </select>
                   </div>
                 </div>
               </div>
+
+              <div class="space-y-2">
+                <div class="flex justify-between items-center px-1">
+                  <div class="text-xs font-bold text-zinc-500 uppercase tracking-wider">消費明細</div>
+                  <button @click="addBatchRow()" class="text-xs bg-emerald-900/30 text-emerald-400 border border-emerald-900/50 px-2 py-1 rounded hover:bg-emerald-900/50 transition">
+                    <i class="fa-solid fa-plus mr-1"></i>新增一列
+                  </button>
+                </div>
+
+                <div v-for="(item, index) in batchList" :key="index" class="bg-zinc-900 border border-zinc-800 p-3 rounded-lg relative group">
+                  
+                  <div class="absolute right-0 top-0 bottom-0 w-10 flex items-center justify-center sm:hidden z-10">
+                     <button @click="removeBatchRow(index)" class="text-zinc-600 hover:text-rose-500 w-full h-full flex items-center justify-center">
+                        <i class="fa-solid fa-trash"></i>
+                     </button>
+                  </div>
+
+                  <div class="grid grid-cols-12 gap-2 sm:gap-3 items-center pr-8 sm:pr-0">
+                    
+                    <div class="col-span-8 sm:col-span-3">
+                      <input v-model="item.name" type="text" placeholder="品項" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm text-white focus:border-emerald-500 outline-none">
+                    </div>
+                    
+                    <div class="col-span-4 sm:col-span-2">
+                      <input v-model.number="item.amount" type="number" placeholder="$" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm text-white font-mono focus:border-emerald-500 outline-none">
+                    </div>
+
+                    <div class="col-span-7 sm:col-span-3">
+                      <input v-model="item.note" type="text" placeholder="備註 (選填)" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm text-zinc-400 focus:border-emerald-500 outline-none">
+                    </div>
+
+                    <div class="col-span-5 sm:col-span-3">
+                      <select v-model="item.owner" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm text-white focus:border-emerald-500 outline-none">
+                        <option v-for="p in peopleList" :value="p">{{ p }}</option>
+                      </select>
+                    </div>
+
+                    <div class="hidden sm:flex col-span-1 justify-center">
+                      <button @click="removeBatchRow(index)" class="w-8 h-8 rounded hover:bg-rose-950/30 text-zinc-600 hover:text-rose-500 transition flex items-center justify-center">
+                        <i class="fa-solid fa-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
+
             <div class="border-t border-zinc-800 bg-zinc-900/95 p-4 flex justify-between items-center shrink-0 rounded-b-xl">
-              <div class="flex flex-col"><span class="text-xs text-zinc-500">總金額</span><span class="text-xl font-bold font-mono text-white">${{ batchTotal }}</span></div>
-              <button @click="saveBatch()" class="bg-white hover:bg-zinc-200 text-black px-6 py-2.5 rounded-lg font-bold text-sm shadow-lg transform active:scale-[0.99] transition">儲存 {{ batchList.length }} 筆紀錄</button>
+              <div class="flex flex-col">
+                <span class="text-xs text-zinc-500">總金額</span>
+                <span class="text-xl font-bold font-mono text-white">${{ batchTotal }}</span>
+              </div>
+              <button @click="saveBatch()" class="bg-white hover:bg-zinc-200 text-black px-6 py-2.5 rounded-lg font-bold text-sm shadow-lg transform active:scale-[0.99] transition">
+                儲存 {{ batchList.length }} 筆紀錄
+              </button>
             </div>
+
           </div>
         </div>
       </transition>
@@ -317,7 +384,7 @@
             return `${year}-${month}-${day}`;
           };
           
-          const API_URL = "https://script.google.com/macros/s/AKfycbw-0HUE3onUx_mMHa8JCEFkdXQAUArFBtu9EZFmk3qMQAqydnB5e-6CHGPbk0rFyYpbyA/exec";
+          const API_URL = "https://script.google.com/macros/s/AKfycbxau29o3BM5QwjxhWVMcELC6yICw8zlgzr-MpG52Iq1ZLnfXzDUeGJS8fuT53ZrYLqfwA/exec";
 
           const peopleList = ref([]);
           const categoryList = ref([]);
@@ -341,7 +408,12 @@
           };
           const form = ref({ ...defaultForm });
 
-          const batchForm = ref({ date: getTodayDate(), payer: "", category: "", paymentMethod: "現金" });
+          const batchForm = ref({
+            date: getTodayDate(),
+            payer: "",
+            category: "", 
+            paymentMethod: "現金"
+          });
           const batchList = ref([]); 
 
           const getPassword = () => {
@@ -404,64 +476,9 @@
             else form.value.paidBy.splice(idx, 1);
           };
 
-          // --- Sheet Management ---
-          const fetchSheets = async () => {
-            try {
-              const res = await fetch(`${API_URL}?action=get_sheets`);
-              const data = await res.json();
-              if (data.sheets) {
-                sheetList.value = data.sheets;
-                if (!currentSheet.value) currentSheet.value = data.sheets[0];
-              }
-            } catch (e) { console.error("分頁讀取失敗", e); }
-          };
-
-          const changeSheet = () => {
-            isInitializing.value = true;
-            fetchData();
-            fetchSettings();
-          };
-
-          const createNewSheet = async () => {
-            const newName = prompt("請輸入新分頁名稱：");
-            if (!newName) return;
-            const pwd = getPassword();
-            if(!pwd) return;
-            isInitializing.value = true;
-            try {
-              const res = await fetch(`${API_URL}?action=create_sheet&new_name=${encodeURIComponent(newName)}&auth=${pwd}`);
-              const data = await res.json();
-              if(data.status === 'success') {
-                sheetList.value = data.sheets;
-                currentSheet.value = newName;
-                changeSheet(); // 切換過去
-              } else {
-                alert("建立失敗：" + (data.message || "未知錯誤"));
-              }
-            } catch(e) { alert("連線錯誤"); } finally { isInitializing.value = false; }
-          };
-
-          const deleteCurrentSheet = async () => {
-            if(!confirm(`確定要刪除分頁【${currentSheet.value}】嗎？\n此動作無法復原！`)) return;
-            const pwd = getPassword();
-            if(!pwd) return;
-            isInitializing.value = true;
-            try {
-              const res = await fetch(`${API_URL}?action=delete_sheet&target_name=${encodeURIComponent(currentSheet.value)}&auth=${pwd}`);
-              const data = await res.json();
-              if(data.status === 'success') {
-                sheetList.value = data.sheets;
-                currentSheet.value = data.sheets[0]; // 回到第一個
-                changeSheet();
-              } else {
-                alert("刪除失敗：" + (data.message || "未知錯誤"));
-              }
-            } catch(e) { alert("連線錯誤"); } finally { isInitializing.value = false; }
-          };
-
           const fetchSettings = async () => {
             try {
-              const res = await fetch(`${API_URL}?action=get_settings&sheet=${encodeURIComponent(currentSheet.value)}`);
+              const res = await fetch(`${API_URL}?action=get_settings`);
               const data = await res.json();
               if (data.people) peopleList.value = data.people;
               if (data.categories) categoryList.value = data.categories;
@@ -481,7 +498,7 @@
 
           const fetchData = async () => {
             try {
-              const res = await fetch(`${API_URL}?sheet=${encodeURIComponent(currentSheet.value)}`);
+              const res = await fetch(API_URL);
               items.value = await res.json();
             } catch (e) { alert("讀取失敗，請檢查網路"); } finally { isInitializing.value = false; }
           };
@@ -491,9 +508,10 @@
           
           const openBatchModal = () => { 
             batchForm.value.date = getTodayDate();
-            if(categoryList.value.length > 0) batchForm.value.category = categoryList.value[0];
+            if(categoryList.value.length > 0) batchForm.value.category = categoryList.value[0]; // 分類預設第一項
             
             const defaultOwner = peopleList.value.length > 0 ? peopleList.value[0] : "";
+            // 預設兩列，owner 帶入第一人
             batchList.value = [
               { name: "", amount: null, owner: defaultOwner, note: "" },
               { name: "", amount: null, owner: defaultOwner, note: "" }
@@ -527,7 +545,7 @@
               return {
                 id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
                 date: batchForm.value.date,
-                item: detail.name, 
+                item: detail.name, // 直接使用品項名稱
                 amount: detail.amount,
                 payer: batchForm.value.payer,
                 sharedWith: [detail.owner], 
@@ -625,6 +643,61 @@
             } catch (e) { alert("刪除失敗"); items.value = originalItems; } finally { isSaving.value = false; }
           };
 
+          // --- Sheet Management ---
+          const fetchSheets = async () => {
+            try {
+              const res = await fetch(`${API_URL}?action=get_sheets`);
+              const data = await res.json();
+              if (data.sheets) {
+                sheetList.value = data.sheets;
+                if (!currentSheet.value) currentSheet.value = data.sheets[0];
+              }
+            } catch (e) { console.error("分頁讀取失敗", e); }
+          };
+
+          const changeSheet = () => {
+            isInitializing.value = true;
+            fetchData();
+            fetchSettings();
+          };
+
+          const createNewSheet = async () => {
+            const newName = prompt("請輸入新分頁名稱：");
+            if (!newName) return;
+            const pwd = getPassword();
+            if(!pwd) return;
+            isInitializing.value = true;
+            try {
+              const res = await fetch(`${API_URL}?action=create_sheet&new_name=${encodeURIComponent(newName)}&auth=${pwd}`);
+              const data = await res.json();
+              if(data.status === 'success') {
+                sheetList.value = data.sheets;
+                currentSheet.value = newName;
+                changeSheet(); // 切換過去
+              } else {
+                alert("建立失敗：" + (data.message || "未知錯誤"));
+              }
+            } catch(e) { alert("連線錯誤"); } finally { isInitializing.value = false; }
+          };
+
+          const deleteCurrentSheet = async () => {
+            if(!confirm(`確定要刪除分頁【${currentSheet.value}】嗎？\n此動作無法復原！`)) return;
+            const pwd = getPassword();
+            if(!pwd) return;
+            isInitializing.value = true;
+            try {
+              const res = await fetch(`${API_URL}?action=delete_sheet&target_name=${encodeURIComponent(currentSheet.value)}&auth=${pwd}`);
+              const data = await res.json();
+              if(data.status === 'success') {
+                sheetList.value = data.sheets;
+                currentSheet.value = data.sheets[0]; // 回到第一個
+                changeSheet();
+              } else {
+                alert("刪除失敗：" + (data.message || "未知錯誤"));
+              }
+            } catch(e) { alert("連線錯誤"); } finally { isInitializing.value = false; }
+          };
+
           const formatNumber = (n) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
           onMounted(async () => {
@@ -634,20 +707,17 @@
           });
 
           return {
-            items, peopleList, categoryList, bankList, sheetList, currentSheet, // 匯出分頁相關
+            items, peopleList, categoryList, bankList, sheetList, currentSheet,
             activeTab, personTabs, filteredItems, summary, 
             showModal, showBatchModal, isEditing, form, batchForm, batchList, batchTotal, 
             isInitializing, isLoading, isSaving, 
             toggleShared, togglePaidBy, 
             saveItem, saveBatch, openModal, openBatchModal, closeBatchModal, addBatchRow, removeBatchRow, 
             editItem, closeModal, deleteItem, formatNumber, calcMyPay, calcMyReceive,
-            changeSheet, createNewSheet, deleteCurrentSheet // 匯出分頁函式
+            changeSheet, createNewSheet, deleteCurrentSheet
           };
         }
       }).mount("#app");
     </script>
   </body>
 </html>
-
-
-
