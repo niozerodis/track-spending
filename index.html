@@ -766,6 +766,7 @@
             if (!userPassword) return;
             const originalItems = [...items.value];
             items.value = items.value.filter((i) => i.id !== id);
+            closeModal();
             isSaving.value = true;
             try {
               const payload = {
@@ -831,3 +832,4 @@
     </script>
   </body>
 </html>
+
