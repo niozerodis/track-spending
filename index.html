@@ -460,12 +460,6 @@
 
           const personTabs = computed(() => ["全部", ...peopleList.value]);
 
-          const filteredItems = computed(() => {
-            const validItems = items.value.filter(i => i.item && i.item.toString().trim() !== "");
-            if (activeTab.value === "全部") return validItems;
-            return validItems.filter(i => i.payer === activeTab.value || i.sharedWith.includes(activeTab.value));
-          });
-
           const summary = computed(() => {
             const list = filteredItems.value;
             const totalMyPay = list.reduce((sum, i) => sum + (Number(i.myPay) || 0), 0);
@@ -678,5 +672,6 @@
     </script>
   </body>
 </html>
+
 
 
