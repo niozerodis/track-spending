@@ -79,7 +79,10 @@
 
       <div class="max-w-[1200px] mx-auto px-4 mt-4 pb-10">
         <div class="hidden md:grid grid-cols-12 gap-4 px-4 py-2 text-xs font-bold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 mb-2">
-          <div class="col-span-2">日期 / 付款人</div>
+          <div class="col-span-2 cursor-pointer select-none flex items-center gap-2 hover:text-zinc-300 transition" @click="toggleSort">
+            日期 / 付款人
+            <i class="fa-solid" :class="sortOrder === 'desc' ? 'fa-sort-down mb-1' : 'fa-sort-up mt-1'"></i>
+          </div>
           <div class="col-span-4">項目 / 分類</div>
           <div class="col-span-3">分攤對象</div>
           <div class="col-span-3 text-right">金額 / 我的帳務</div>
@@ -356,6 +359,38 @@
 
       createApp({
         setup() {
+          const sortOrder = ref('desc'); // 'desc' = 降冪 (新到舊), 'asc' = 升冪 (舊到新)
+          const toggleSort = () => {
+            sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc';
+          };
+          const filteredItems = computed(() => {
+            // 先過濾空白項目
+            let list = items.value.filter(i => i.item && i.item.toString().trim() !== "");
+            
+            // 過濾頁籤 (人名)
+            if (activeTab.value !== "全部") {
+              list = list.filter(i => i.payer === activeTab.value || i.sharedWith.includes(activeTab.value));
+            }
+          
+            // === 新增：排序邏輯 ===
+            return list.sort((a, b) => {
+              const dateA = new Date(a.date).getTime();
+              const dateB = new Date(b.date).getTime();
+              
+              // 如果日期相同，可以依照建立時間(ID)排序，讓剛新增的保持在前面
+              if (dateA === dateB) {
+                  // 假設 ID 包含時間戳記，若沒有則忽略
+                  return sortOrder.value === 'desc' ? b.id.localeCompare(a.id) : a.id.localeCompare(b.id);
+              }
+          
+              // 依照日期排序
+              if (sortOrder.value === 'desc') {
+                return dateB - dateA; // 新的在前 (大 -> 小)
+              } else {
+                return dateA - dateB; // 舊的在前 (小 -> 大)
+              }
+            });
+          });
           const getTodayDate = () => {
             const d = new Date();
             const year = d.getFullYear();
@@ -636,11 +671,12 @@
             isInitializing, isLoading, isSaving, 
             toggleShared, togglePaidBy, 
             saveItem, saveBatch, openModal, openBatchModal, closeBatchModal, addBatchRow, removeBatchRow, 
-            editItem, closeModal, deleteItem, formatNumber, calcMyPay, calcMyReceive
+            editItem, closeModal, deleteItem, formatNumber, calcMyPay, calcMyReceive, sortOrder, toggleSort
           };
         }
       }).mount("#app");
     </script>
   </body>
 </html>
+
 
