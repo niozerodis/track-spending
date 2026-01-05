@@ -377,17 +377,21 @@
               const dateA = new Date(a.date).getTime();
               const dateB = new Date(b.date).getTime();
               
-              // 如果日期相同，可以依照建立時間(ID)排序，讓剛新增的保持在前面
+              // 如果日期相同，比較 ID
               if (dateA === dateB) {
-                  // 假設 ID 包含時間戳記，若沒有則忽略
-                  return sortOrder.value === 'desc' ? b.id.localeCompare(a.id) : a.id.localeCompare(b.id);
+                  // === 修正點在這裡 ===
+                  // 強制把 id 轉成字串 (String) 再比較，這樣就算 id 是數字也不會報錯
+                  const idA = String(a.id);
+                  const idB = String(b.id);
+                  
+                  return sortOrder.value === 'desc' ? idB.localeCompare(idA) : idA.localeCompare(idB);
               }
-          
+  
               // 依照日期排序
               if (sortOrder.value === 'desc') {
-                return dateB - dateA; // 新的在前 (大 -> 小)
+                return dateB - dateA; // 降冪
               } else {
-                return dateA - dateB; // 舊的在前 (小 -> 大)
+                return dateA - dateB; // 升冪
               }
             });
           });
@@ -672,6 +676,7 @@
     </script>
   </body>
 </html>
+
 
 
 
