@@ -668,7 +668,15 @@
             if(!pwd) return;
             isInitializing.value = true;
             try {
-              const res = await fetch(`${API_URL}?action=create_sheet&new_name=${encodeURIComponent(newName)}&auth=${pwd}`);
+              const res = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  action: "create_sheet",
+                  new_name: newName,
+                  auth: pwd
+                })
+              });
               const data = await res.json();
               if(data.status === 'success') {
                 sheetList.value = data.sheets;
@@ -686,7 +694,15 @@
             if(!pwd) return;
             isInitializing.value = true;
             try {
-              const res = await fetch(`${API_URL}?action=delete_sheet&target_name=${encodeURIComponent(currentSheet.value)}&auth=${pwd}`);
+             const res = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  action: "delete_sheet",
+                  target_name: currentSheet.value,
+                  auth: pwd
+                })
+              });
               const data = await res.json();
               if(data.status === 'success') {
                 sheetList.value = data.sheets;
@@ -721,4 +737,5 @@
     </script>
   </body>
 </html>
+
 
