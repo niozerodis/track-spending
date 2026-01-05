@@ -390,7 +390,7 @@
             return `${year}-${month}-${day}`;
           };
           
-          // ★★★ 請填入你的 Apps Script 網址 (務必確認部署為最新版本) ★★★
+          // ★★★ 請填入你的 Apps Script 網址 ★★★
           const API_URL = "https://script.google.com/macros/s/AKfycbw-0HUE3onUx_mMHa8JCEFkdXQAUArFBtu9EZFmk3qMQAqydnB5e-6CHGPbk0rFyYpbyA/exec";
 
           const items = ref([]);
@@ -407,12 +407,11 @@
           const currentSheetName = ref("");
           const sheetList = ref([]);
 
-          // 基礎設定 (會從後端讀取覆蓋)
+          // 基礎設定
           const peopleList = ref([]);
           const categoryList = ref([]);
           const bankList = ref([]);
           
-          // Filter Tab 用的
           const activeTab = ref("全部");
 
           const defaultForm = {
@@ -435,7 +434,7 @@
             return pwd;
           };
 
-          // 通用的 API 發送函式 (處理 Create / Delete / Save)
+          // 通用的 API 發送函式
           const sendCommand = async (action, extraData = {}) => {
             const userPassword = getPassword();
             if (!userPassword) return false;
@@ -445,7 +444,7 @@
               const payload = {
                 auth: userPassword,
                 action: action,
-                sheetName: currentSheetName.value, // 重要：告訴後端要操作哪個分頁
+                sheetName: currentSheetName.value, 
                 ...extraData,
               };
 
@@ -517,12 +516,11 @@
                 console.warn(data.error);
                 if (data.sheetList) sheetList.value = data.sheetList;
               } else {
-                items.value = data; // 直接使用回傳的資料
+                items.value = data; 
               }
             } catch (error) { alert("讀取失敗"); } finally { isLoading.value = false; }
           };
 
-          // 切換分頁時觸發
           const handleSheetChange = () => {
             isInitializing.value = true;
             fetchData();
@@ -530,7 +528,6 @@
             setTimeout(() => isInitializing.value = false, 500);
           };
 
-          // 重新整理
           const refreshAll = async () => {
              isInitializing.value = true;
              await fetchSheetList();
@@ -539,12 +536,11 @@
              isInitializing.value = false;
           };
 
-          // 3. 儲存項目 (新增/修改)
+          // 3. 儲存項目
           const saveItem = async () => {
             form.value.myPay = calcMyPay.value;
             form.value.myReceive = calcMyReceive.value;
 
-            // 本地先更新畫面
             if (isEditing.value) {
               const idx = items.value.findIndex((i) => i.id === form.value.id);
               if (idx !== -1) items.value[idx] = { ...form.value };
@@ -552,16 +548,15 @@
               items.value.unshift({ ...form.value, id: Date.now().toString() });
             }
             closeModal();
-            // 發送至後端
             const success = await sendCommand("save", { data: items.value });
-            if(!success) fetchData(); // 如果失敗就重新抓取
+            if(!success) fetchData(); 
           };
 
           // 4. 刪除項目
           const deleteItem = async (id) => {
             if (confirm("刪除此項目？")) {
               items.value = items.value.filter((i) => i.id !== id);
-              closeModal(); // 確保關閉視窗
+              closeModal(); 
               const success = await sendCommand("save", { data: items.value });
               if(!success) fetchData();
             }
@@ -580,7 +575,7 @@
             const success = await sendCommand("create_sheet", { sheetName: newName });
             if (success) {
               alert("分頁建立成功！");
-              items.value = []; // 新分頁是空的
+              items.value = [];
               await fetchSheetList(); 
               currentSheetName.value = newName; 
             }
@@ -602,6 +597,10 @@
             }
           };
           
+          // ★★★ 修正點：加入 closeBatchModal 定義 ★★★
+          const closeModal = () => (showModal.value = false);
+          const closeBatchModal = () => (showBatchModal.value = false);
+
           // 團購邏輯
           const openBatchModal = () => { 
             batchForm.value.date = getTodayDate();
@@ -623,7 +622,6 @@
             const validItems = batchList.value.filter(i => i.name && i.amount && i.owner);
             if (validItems.length === 0) { alert("請至少輸入一筆完整的明細"); return; }
             
-            // 轉換為標準格式
             const newRecords = validItems.map(detail => {
               let myPay = 0; let myReceive = 0;
               const isPayerMe = batchForm.value.payer === "Nio";
@@ -651,7 +649,6 @@
             closeBatchModal();
             await sendCommand("save", { data: items.value });
           };
-
 
           // 計算邏輯
           const calcMyPay = computed(() => {
@@ -722,7 +719,6 @@
             if (!Array.isArray(form.value.paidBy)) form.value.paidBy = []; 
             showModal.value = true;
           };
-          const closeModal = () => (showModal.value = false);
 
           onMounted(async () => {
             isInitializing.value = true;
@@ -740,10 +736,12 @@
             openModal, openBatchModal, closeBatchModal, closeModal,
             saveItem, saveBatch, deleteItem, editItem,
             toggleShared, togglePaidBy, addBatchRow, removeBatchRow,
-            formatNumber, calcMyPay, calcMyReceive
+            formatNumber, calcMyPay, calcMyReceive,
+            changeSheet, createNewSheet, deleteCurrentSheet
           };
         },
       }).mount("#app");
     </script>
   </body>
 </html>
+
