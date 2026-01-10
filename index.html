@@ -446,15 +446,22 @@
           const calcMyPay = computed(() => {
             if (!form.value.amount || form.value.sharedWith.length === 0) return 0;
             const unitPrice = Math.round(form.value.amount / form.value.sharedWith.length);
-            if (form.value.sharedWith.includes("Nio") && form.value.payer === "Nio") return 0;
-            if (form.value.sharedWith.includes("Nio") && form.value.payer !== "Nio") return unitPrice;
+            if (form.value.sharedWith.includes("Nio")) {
+              return unitPrice;
+            }
             return 0;
           });
 
           const calcMyReceive = computed(() => {
             if (!form.value.amount || form.value.sharedWith.length === 0) return 0;
-            const unitPrice = Math.round(form.value.amount / form.value.sharedWith.length);
-            if (form.value.payer === "Nio") return unitPrice;
+            if (form.value.payer === "Nio") {
+               let receivable = form.value.amount;
+               if (form.value.sharedWith.includes("Nio")) {
+                  const unitPrice = Math.round(form.value.amount / form.value.sharedWith.length);
+                  receivable -= unitPrice;
+               }
+               return receivable > 0 ? receivable : 0;
+            }
             return 0;
           });
 
@@ -676,6 +683,7 @@
     </script>
   </body>
 </html>
+
 
 
 
