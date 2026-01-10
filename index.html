@@ -427,7 +427,8 @@
           
           const API_URL = "https://script.google.com/macros/s/AKfycbw-0HUE3onUx_mMHa8JCEFkdXQAUArFBtu9EZFmk3qMQAqydnB5e-6CHGPbk0rFyYpbyA/exec";
 
-          const peopleList = ref([]);
+          const payerList = ref([]);  // 給付款人用
+          const memberList = ref([]); // 給分攤/已還款用
           const categoryList = ref([]);
           const bankList = ref([]);
 
@@ -491,7 +492,7 @@
             return batchList.value.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
           });
 
-          const personTabs = computed(() => ["全部", ...peopleList.value]);
+          const personTabs = computed(() => ["全部", ...memberList.value]);
 
           const summary = computed(() => {
             const list = filteredItems.value;
@@ -520,13 +521,15 @@
             try {
               const res = await fetch(`${API_URL}?action=get_settings`);
               const data = await res.json();
-              if (data.people) peopleList.value = data.people;
+              if (data.payers) payerList.value = data.payers;
+              if (data.members) memberList.value = data.members;
+
               if (data.categories) categoryList.value = data.categories;
               if (data.banks) bankList.value = data.banks;
               
-              if (peopleList.value.length > 0) {
-                defaultForm.payer = peopleList.value[0];
-                batchForm.value.payer = peopleList.value[0];
+              if (payerList.value.length > 0) {
+                defaultForm.payer = payerList.value[0];
+                batchForm.value.payer = payerList.value[0];
               }
               if (categoryList.value.length > 0) {
                 defaultForm.category = categoryList.value[0];
@@ -691,7 +694,7 @@
           });
 
           return {
-            items, peopleList, categoryList, bankList,
+            items, payerList, memberList, categoryList, bankList,
             activeTab, personTabs, filteredItems, summary, 
             showModal, showBatchModal, isEditing, form, batchForm, batchList, batchTotal, 
             isInitializing, isLoading, isSaving, 
@@ -705,3 +708,4 @@
     </script>
   </body>
 </html>
+
