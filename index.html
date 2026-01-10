@@ -16,6 +16,9 @@
       .fade-enter-from, .fade-leave-to { opacity: 0; }
       .no-scrollbar::-webkit-scrollbar { display: none; }
       html, body { font-size: 14px; }
+      /* 加入抓取游標樣式 */
+      .cursor-grab { cursor: grab; }
+      .cursor-grabbing { cursor: grabbing; }
     </style>
   </head>
   <body>
@@ -52,7 +55,14 @@
         <div class="border-t border-zinc-800 bg-zinc-900/95 backdrop-blur-sm">
           <div class="max-w-[1200px] mx-auto px-4 flex items-center justify-between gap-2">
             
-            <div class="overflow-x-auto no-scrollbar flex gap-2 py-2 flex-1">
+            <div 
+              ref="scrollContainer"
+              @mousedown="startDrag"
+              @mouseleave="stopDrag"
+              @mouseup="stopDrag"
+              @mousemove="doDrag"
+              class="overflow-x-auto no-scrollbar flex gap-2 py-2 flex-1 cursor-grab active:cursor-grabbing select-none"
+            >
               <button 
                 v-for="tab in personTabs" 
                 :key="tab"
@@ -205,7 +215,7 @@
                   <label class="block text-xs font-bold text-zinc-500 mb-1 uppercase">付款人</label>
                   <div class="relative">
                     <select v-model="form.payer" class="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-base text-white focus:border-zinc-500 outline-none appearance-none cursor-pointer">
-                      <option v-for="p in peopleList" :value="p">{{ p }}</option>
+                      <option v-for="p in payerList" :value="p">{{ p }}</option>
                     </select>
                     <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-500"><i class="fa-solid fa-chevron-down text-xs"></i></div>
                   </div>
@@ -224,7 +234,7 @@
               <div class="bg-zinc-950/50 p-3 rounded border border-zinc-800/50">
                 <label class="block text-xs font-bold text-zinc-500 mb-2 uppercase">分攤對象 <span class="text-zinc-600 font-normal normal-case">(每人 ${{ Math.round(form.amount / (form.sharedWith.length || 1)) }})</span></label>
                 <div class="flex flex-wrap gap-2">
-                  <div v-for="p in peopleList" :key="p" @click="toggleShared(p)" class="px-3 py-1.5 rounded text-sm font-bold cursor-pointer border transition select-none flex items-center gap-1" :class="form.sharedWith.includes(p) ? 'bg-zinc-100 text-black border-white' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-500'">
+                  <div v-for="p in memberList" :key="p" @click="toggleShared(p)" class="px-3 py-1.5 rounded text-sm font-bold cursor-pointer border transition select-none flex items-center gap-1" :class="form.sharedWith.includes(p) ? 'bg-zinc-100 text-black border-white' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-500'">
                     {{ p }} <i v-if="form.sharedWith.includes(p)" class="fa-solid fa-check text-xs"></i>
                   </div>
                 </div>
@@ -233,7 +243,7 @@
               <div class="bg-zinc-950/50 p-3 rounded border border-zinc-800/50">
                 <label class="block text-xs font-bold text-zinc-500 mb-2 uppercase">已還款</label>
                 <div class="flex flex-wrap gap-2">
-                  <div v-for="p in peopleList" :key="'paid-'+p" @click="togglePaidBy(p)" class="px-3 py-1.5 rounded text-sm font-bold cursor-pointer border transition select-none flex items-center gap-1" :class="form.paidBy.includes(p) ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-500'">
+                  <div v-for="p in memberList" :key="'paid-'+p" @click="togglePaidBy(p)" class="px-3 py-1.5 rounded text-sm font-bold cursor-pointer border transition select-none flex items-center gap-1" :class="form.paidBy.includes(p) ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-500'">
                     {{ p }} <i v-if="form.paidBy.includes(p)" class="fa-solid fa-check text-xs"></i>
                   </div>
                 </div>
@@ -296,7 +306,7 @@
                   <div class="col-span-1">
                     <label class="block text-xs font-bold text-zinc-500 mb-1">付款人</label>
                     <select v-model="batchForm.payer" class="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-sm text-white focus:border-emerald-500 outline-none">
-                      <option v-for="p in peopleList" :value="p">{{ p }}</option>
+                      <option v-for="p in payerList" :value="p">{{ p }}</option>
                     </select>
                   </div>
                   <div class="col-span-1">
@@ -338,7 +348,7 @@
 
                     <div class="col-span-5 sm:col-span-3">
                       <select v-model="item.owner" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm text-white focus:border-emerald-500 outline-none">
-                        <option v-for="p in peopleList" :value="p">{{ p }}</option>
+                        <option v-for="p in memberList" :value="p">{{ p }}</option>
                       </select>
                     </div>
 
@@ -379,26 +389,45 @@
             sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc';
           };
 
-          // === 新增：銀行/付款方式的篩選狀態 ===
           const filterBank = ref("全部");
-
-          // === 新增：銀行篩選的選項 (自動加入 '全部') ===
           const bankFilterOptions = computed(() => ["全部", ...bankList.value]);
+
+          // === 拖曳滾動相關邏輯 ===
+          const scrollContainer = ref(null);
+          const isDragging = ref(false);
+          const startX = ref(0);
+          const scrollLeft = ref(0);
+
+          const startDrag = (e) => {
+            isDragging.value = true;
+            startX.value = e.pageX - scrollContainer.value.offsetLeft;
+            scrollLeft.value = scrollContainer.value.scrollLeft;
+          };
+
+          const stopDrag = () => {
+            isDragging.value = false;
+          };
+
+          const doDrag = (e) => {
+            if (!isDragging.value) return;
+            e.preventDefault(); // 防止選取文字
+            const x = e.pageX - scrollContainer.value.offsetLeft;
+            const walk = (x - startX.value) * 2; // 數字越大捲動越快
+            scrollContainer.value.scrollLeft = scrollLeft.value - walk;
+          };
+          // ======================
 
           const filteredItems = computed(() => {
             let list = items.value.filter(i => i.item && i.item.toString().trim() !== "");
             
-            // 1. 過濾頁籤 (人名)
             if (activeTab.value !== "全部") {
               list = list.filter(i => i.payer === activeTab.value || i.sharedWith.includes(activeTab.value));
             }
 
-            // === 2. 新增：過濾銀行 (Payment Method) ===
             if (filterBank.value !== "全部") {
               list = list.filter(i => i.paymentMethod === filterBank.value);
             }
            
-            // 3. 排序邏輯
             return list.sort((a, b) => {
               const dateA = new Date(a.date).getTime();
               const dateB = new Date(b.date).getTime();
@@ -427,8 +456,9 @@
           
           const API_URL = "https://script.google.com/macros/s/AKfycbw-0HUE3onUx_mMHa8JCEFkdXQAUArFBtu9EZFmk3qMQAqydnB5e-6CHGPbk0rFyYpbyA/exec";
 
-          const payerList = ref([]);  // 給付款人用
-          const memberList = ref([]); // 給分攤/已還款用
+          // 分別定義兩個名單
+          const payerList = ref([]);
+          const memberList = ref([]);
           const categoryList = ref([]);
           const bankList = ref([]);
 
@@ -492,6 +522,7 @@
             return batchList.value.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
           });
 
+          // 頁籤通常使用「分攤名單」比較完整 (包含所有可能出現的人)
           const personTabs = computed(() => ["全部", ...memberList.value]);
 
           const summary = computed(() => {
@@ -521,12 +552,14 @@
             try {
               const res = await fetch(`${API_URL}?action=get_settings`);
               const data = await res.json();
+              
+              // 接收後端傳來的兩份名單
               if (data.payers) payerList.value = data.payers;
               if (data.members) memberList.value = data.members;
-
               if (data.categories) categoryList.value = data.categories;
               if (data.banks) bankList.value = data.banks;
               
+              // 設定預設值 (注意：使用對應的 List)
               if (payerList.value.length > 0) {
                 defaultForm.payer = payerList.value[0];
                 batchForm.value.payer = payerList.value[0];
@@ -554,7 +587,8 @@
             batchForm.value.date = getTodayDate();
             if(categoryList.value.length > 0) batchForm.value.category = categoryList.value[0];
             
-            const defaultOwner = peopleList.value.length > 0 ? peopleList.value[0] : "";
+            // 預設擁有者使用 memberList
+            const defaultOwner = memberList.value.length > 0 ? memberList.value[0] : "";
             batchList.value = [
               { name: "", amount: null, owner: defaultOwner, note: "" },
               { name: "", amount: null, owner: defaultOwner, note: "" }
@@ -563,7 +597,7 @@
           };
 
           const addBatchRow = () => { 
-             const defaultOwner = peopleList.value.length > 0 ? peopleList.value[0] : "";
+             const defaultOwner = memberList.value.length > 0 ? memberList.value[0] : "";
              batchList.value.push({ name: "", amount: null, owner: defaultOwner, note: "" }); 
           };
           
@@ -649,7 +683,7 @@
                 ...defaultForm, 
                 date: getTodayDate(), 
                 sharedWith: [], paidBy: [],
-                payer: form.value.payer || (peopleList.value[0] || ""),
+                payer: form.value.payer || (payerList.value[0] || ""),
                 category: form.value.category || (categoryList.value[0] || ""),
                 paymentMethod: form.value.paymentMethod || (bankList.value[0] || "")
             }; 
@@ -701,11 +735,11 @@
             toggleShared, togglePaidBy, 
             saveItem, saveBatch, openModal, openBatchModal, closeBatchModal, addBatchRow, removeBatchRow, 
             editItem, closeModal, deleteItem, formatNumber, calcMyPay, calcMyReceive, sortOrder, toggleSort,
-            filterBank, bankFilterOptions
+            filterBank, bankFilterOptions,
+            scrollContainer, startDrag, stopDrag, doDrag
           };
         }
       }).mount("#app");
     </script>
   </body>
 </html>
-
