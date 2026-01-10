@@ -551,7 +551,7 @@
               const isPayerMe = batchForm.value.payer === "Nio";
               const isOwnerMe = detail.owner === "Nio";
 
-              if (isOwnerMe && !isPayerMe) myPay = detail.amount;
+              if (isOwnerMe) myPay = detail.amount;
               if (isPayerMe && !isOwnerMe) myReceive = detail.amount;
 
               return {
@@ -676,6 +676,7 @@
     </script>
   </body>
 </html>
+
 
 
 
