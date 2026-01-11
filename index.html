@@ -37,22 +37,30 @@
             <div class="w-8 h-8 rounded bg-zinc-800 flex items-center justify-center text-zinc-200 border border-zinc-700">
               <i class="fa-solid fa-comments-dollar text-sm"></i>
             </div>
-            <h1 class="font-bold text-lg text-white tracking-wide">記帳本</h1>
+            
+            <div class="flex items-center gap-1">
+              <div class="relative group">
+                <select @change="changeSheet($event.target.value)" class="appearance-none bg-transparent font-bold text-lg text-white pr-6 cursor-pointer outline-none hover:text-emerald-400 transition">
+                   <option v-for="s in sheetList" :key="s" :value="s" :selected="s === currentSheet" class="bg-zinc-900 text-zinc-200 text-sm">
+                     {{ s }}
+                   </option>
+                </select>
+                <div class="absolute inset-y-0 right-0 flex items-center pointer-events-none text-zinc-500 group-hover:text-emerald-400">
+                   <i class="fa-solid fa-caret-down text-xs"></i>
+                </div>
+              </div>
+              
+              <button @click="createNewSheet()" class="w-6 h-6 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center border border-zinc-700 transition ml-1" title="新增分頁">
+                 <i class="fa-solid fa-plus text-[10px]"></i>
+              </button>
+            </div>
             <span v-if="isSaving" class="text-xs text-emerald-500 flex items-center font-mono ml-2">
               <i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Saving...
             </span>
           </div>
+        
           <div class="flex gap-2">
-            <button @click="exportToExcel()" class="bg-emerald-800 hover:bg-emerald-700 text-zinc-200 w-9 h-9 rounded flex items-center justify-center border border-emerald-700 transition shadow-lg" title="匯出 Excel">
-              <i class="fa-solid fa-file-csv text-sm"></i>
-            </button>
-            <button @click="openBatchModal()" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded text-sm font-bold transition flex items-center gap-1.5 border border-zinc-700">
-              <i class="fa-solid fa-layer-group text-xs"></i> <span class="hidden sm:inline">團購</span>分帳
-            </button>
-            <button @click="openModal()" class="bg-zinc-100 hover:bg-white text-black px-4 py-1.5 rounded text-sm font-bold transition flex items-center gap-1.5 shadow hover:shadow-md">
-              <i class="fa-solid fa-plus"></i> 記一筆
-            </button>
-          </div>
+              </div>
         </div>
 
         <div class="border-t border-zinc-800 bg-zinc-900/95 backdrop-blur-sm">
@@ -620,11 +628,100 @@
             } catch (e) { console.error("設定讀取失敗", e); }
           };
 
-          const fetchData = async () => {
+          // === 新增：分頁管理變數 ===
+          const sheetList = ref([]);
+          const currentSheet = ref(""); // 目前選中的分頁名稱
+
+          // 修改 fetchSettings：讀取後端回傳的分頁清單
+          const fetchSettings = async () => {
             try {
-              const res = await fetch(API_URL);
+              // 呼叫設定時，也要傳目前的 sheetName (如果有)，雖然讀設定跟 sheet 關係不大，但保持習慣
+              const res = await fetch(`${API_URL}?action=get_settings&sheetName=${currentSheet.value}`);
+              const data = await res.json();
+              
+              if (data.sheets) {
+                 sheetList.value = data.sheets;
+                 // 如果目前沒有選定分頁，預設選第一個
+                 if (!currentSheet.value && sheetList.value.length > 0) {
+                    currentSheet.value = sheetList.value[0];
+                 }
+              }
+              
+              if (data.payers) payerList.value = data.payers;
+              if (data.members) memberList.value = data.members;
+              if (data.categories) categoryList.value = data.categories;
+              if (data.banks) bankList.value = data.banks;
+              
+              // 設定預設值
+              if (payerList.value.length > 0) {
+                defaultForm.payer = payerList.value[0];
+                batchForm.value.payer = payerList.value[0];
+              }
+              if (categoryList.value.length > 0) {
+                defaultForm.category = categoryList.value[0];
+                batchForm.value.category = categoryList.value[0]; 
+              }
+              if (bankList.value.length > 0) defaultForm.paymentMethod = bankList.value[0];
+            } catch (e) { console.error("設定讀取失敗", e); }
+          };
+
+          const fetchData = async () => {
+            // 如果還沒決定 sheet，就先不讀取
+            if (!currentSheet.value) return; 
+
+            isLoading.value = true;
+            try {
+              // ★ 關鍵：傳送 sheetName 參數
+              const res = await fetch(`${API_URL}?sheetName=${encodeURIComponent(currentSheet.value)}`);
               items.value = await res.json();
-            } catch (e) { alert("讀取失敗，請檢查網路"); } finally { isInitializing.value = false; }
+            } catch (e) { alert("讀取失敗，請檢查網路"); } finally { 
+               isInitializing.value = false; 
+               isLoading.value = false;
+            }
+          };
+
+          const changeSheet = (newSheet) => {
+             if (newSheet === currentSheet.value) return;
+             currentSheet.value = newSheet;
+             items.value = []; // 清空當前畫面
+             isInitializing.value = true; // 顯示 Loading
+             fetchData(); // 重新讀取該分頁資料
+          };
+
+          const createNewSheet = async () => {
+             const name = prompt("請輸入新分頁名稱 (例如: 2026-02)：");
+             if (!name) return;
+             
+             const userPassword = getPassword();
+             if (!userPassword) return;
+
+             isInitializing.value = true; // 顯示轉圈圈
+             
+             try {
+                const payload = { 
+                   auth: userPassword, 
+                   action: "create_sheet", 
+                   newSheetName: name,
+                   sheetName: currentSheet.value // 傳當前的當作參考
+                };
+                
+                const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+                const result = await res.json();
+                
+                if (result.status === "success") {
+                   alert("建立成功！");
+                   sheetList.value = result.sheets; // 更新清單
+                   currentSheet.value = name; // 自動切換到新分頁
+                   items.value = []; // 新分頁應該是空的
+                   fetchData();
+                } else {
+                   alert("建立失敗：" + (result.message || "未知錯誤"));
+                   isInitializing.value = false;
+                }
+             } catch(e) {
+                alert("建立請求失敗");
+                isInitializing.value = false;
+             }
           };
 
           const closeModal = () => { showModal.value = false; };
@@ -706,7 +803,7 @@
             form.value.myReceive = calcMyReceive.value;
             isSaving.value = true;
             try {
-              const payload = { auth: userPassword, action: "save", data: isEditing.value ? items.value.map(i => i.id === form.value.id ? form.value : i) : [form.value, ...items.value] };
+              const payload = { auth: userPassword, action: "save", data: isEditing.value ? items.value.map(i => i.id === form.value.id ? form.value : i) : [form.value, ...items.value], sheetName: currentSheet.value };
               if (isEditing.value) {
                 const idx = items.value.findIndex(i => i.id === form.value.id);
                 if (idx !== -1) items.value[idx] = { ...form.value };
@@ -829,7 +926,8 @@
 
           onMounted(async () => {
             isInitializing.value = true;
-            await Promise.all([ fetchSettings(), fetchData() ]);
+            await fetchSettings();
+            await fetchData();
           });
 
           return {
@@ -841,14 +939,10 @@
             saveItem, saveBatch, openModal, openBatchModal, closeBatchModal, addBatchRow, removeBatchRow, 
             editItem, closeModal, deleteItem, formatNumber, calcMyPay, calcMyReceive, sortOrder, toggleSort,
             filterBank, bankFilterOptions,
-            scrollContainer, startDrag, stopDrag, doDrag, exportToExcel
+            scrollContainer, startDrag, stopDrag, doDrag, exportToExcel, sheetList, currentSheet, changeSheet, createNewSheet
           };
         }
       }).mount("#app");
     </script>
   </body>
 </html>
-
-
-
-
