@@ -43,6 +43,9 @@
             </span>
           </div>
           <div class="flex gap-2">
+            <button @click="exportToExcel()" class="bg-emerald-800 hover:bg-emerald-700 text-zinc-200 w-9 h-9 rounded flex items-center justify-center border border-emerald-700 transition shadow-lg" title="匯出 Excel">
+              <i class="fa-solid fa-file-csv text-sm"></i>
+            </button>
             <button @click="openBatchModal()" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded text-sm font-bold transition flex items-center gap-1.5 border border-zinc-700">
               <i class="fa-solid fa-layer-group text-xs"></i> <span class="hidden sm:inline">團購</span>分帳
             </button>
@@ -767,6 +770,63 @@
 
           const formatNumber = (n) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
+          const exportToExcel = () => {
+            const list = filteredItems.value;
+            // 直接讀取我們剛剛修好的 summary 計算結果
+            // 它已經會根據 Tab 是「全部」還是「特定人」自動給出正確的應付/應收數字
+            const stats = summary.value; 
+
+            if (list.length === 0) {
+              alert("沒有資料可以匯出");
+              return;
+            }
+
+            // \uFEFF 是 BOM，確保 Excel 開啟時中文不亂碼
+            let csvContent = "\uFEFF"; 
+
+            // === 第一部分：頂部統計資訊 ===
+            // 這裡顯示的金額，完全對應網頁上方看到的紅色/綠色數字
+            csvContent += `統計模式,${activeTab.value}\n`;
+            csvContent += `總應收 (Receive),${stats.totalMyReceive}\n`;
+            csvContent += `總應付 (Pay),${stats.totalMyPay}\n`;
+            csvContent += `\n`; // 空一行分隔
+
+            // === 第二部分：標題列 ===
+            // 依照您的要求：日期、付款人、項目、分攤對象、單收的金額
+            csvContent += "日期,付款人,項目,分攤對象,單收金額(每人)\n";
+
+            // === 第三部分：詳細資料 ===
+            list.forEach(item => {
+              // 計算單收金額 (總額 / 人數)
+              const unitPrice = Math.round(item.amount / (item.sharedWith.length || 1));
+              
+              // 處理文字中的逗號 (CSV 格式需求)
+              const escape = (txt) => txt ? `"${txt.toString().replace(/"/g, '""')}"` : "";
+              
+              const row = [
+                item.date,
+                escape(item.payer),
+                escape(item.item),
+                escape(item.sharedWith.join(" & ")), // 用 & 連接人名比較好看
+                unitPrice // 這就是「單收金額」
+              ];
+              
+              csvContent += row.join(",") + "\n";
+            });
+
+            // === 觸發下載 ===
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            const fileName = `帳務匯出_${activeTab.value}_${getTodayDate()}.csv`;
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", fileName);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          };
+
           onMounted(async () => {
             isInitializing.value = true;
             await Promise.all([ fetchSettings(), fetchData() ]);
@@ -781,12 +841,13 @@
             saveItem, saveBatch, openModal, openBatchModal, closeBatchModal, addBatchRow, removeBatchRow, 
             editItem, closeModal, deleteItem, formatNumber, calcMyPay, calcMyReceive, sortOrder, toggleSort,
             filterBank, bankFilterOptions,
-            scrollContainer, startDrag, stopDrag, doDrag
+            scrollContainer, startDrag, stopDrag, doDrag, exportToExcel
           };
         }
       }).mount("#app");
     </script>
   </body>
 </html>
+
 
 
