@@ -604,30 +604,6 @@
             else form.value.paidBy.splice(idx, 1);
           };
 
-          const fetchSettings = async () => {
-            try {
-              const res = await fetch(`${API_URL}?action=get_settings`);
-              const data = await res.json();
-              
-              // 接收後端傳來的兩份名單
-              if (data.payers) payerList.value = data.payers;
-              if (data.members) memberList.value = data.members;
-              if (data.categories) categoryList.value = data.categories;
-              if (data.banks) bankList.value = data.banks;
-              
-              // 設定預設值 (注意：使用對應的 List)
-              if (payerList.value.length > 0) {
-                defaultForm.payer = payerList.value[0];
-                batchForm.value.payer = payerList.value[0];
-              }
-              if (categoryList.value.length > 0) {
-                defaultForm.category = categoryList.value[0];
-                batchForm.value.category = categoryList.value[0]; 
-              }
-              if (bankList.value.length > 0) defaultForm.paymentMethod = bankList.value[0];
-            } catch (e) { console.error("設定讀取失敗", e); }
-          };
-
           // === 新增：分頁管理變數 ===
           const sheetList = ref([]);
           const currentSheet = ref(""); // 目前選中的分頁名稱
@@ -946,3 +922,4 @@
     </script>
   </body>
 </html>
+
