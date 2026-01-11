@@ -43,9 +43,6 @@
             </span>
           </div>
           <div class="flex gap-2">
-            <button @click="exportToExcel()" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 w-9 h-9 rounded flex items-center justify-center border border-zinc-700 transition" title="匯出 Excel">
-              <i class="fa-solid fa-file-export text-sm"></i>
-            </button>
             <button @click="openBatchModal()" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded text-sm font-bold transition flex items-center gap-1.5 border border-zinc-700">
               <i class="fa-solid fa-layer-group text-xs"></i> <span class="hidden sm:inline">團購</span>分帳
             </button>
@@ -770,60 +767,6 @@
 
           const formatNumber = (n) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
-          // === 新增：匯出 Excel (CSV) 功能 ===
-          const exportToExcel = () => {
-            const list = filteredItems.value; // 取得目前畫面上的資料 (包含排序與篩選結果)
-            if (list.length === 0) {
-              alert("沒有資料可以匯出");
-              return;
-            }
-
-            // 1. 定義 CSV 的標題列
-            // \uFEFF 是為了讓 Excel 正確辨識中文編碼 (BOM)
-            let csvContent = "\uFEFF"; 
-            csvContent += "日期,付款人,項目,分類,分攤對象,總金額,單人金額(單收),應付(MyPay),應收(MyReceive),備註\n";
-
-            // 2. 轉換每一筆資料
-            list.forEach(item => {
-              // 計算單人分攤金額 (四捨五入)
-              const unitPrice = Math.round(item.amount / (item.sharedWith.length || 1));
-              
-              // 處理可能包含逗號的文字 (用引號包起來)
-              const escape = (txt) => txt ? `"${txt.toString().replace(/"/g, '""')}"` : "";
-              
-              // 組合一列
-              const row = [
-                item.date,
-                escape(item.payer),
-                escape(item.item),
-                escape(item.category),
-                escape(item.sharedWith.join("、")), // 分攤對象用頓號分隔
-                item.amount,
-                unitPrice,       // 單收的金額 (單價)
-                item.myPay,      // 根據目前 Tab 計算的應付
-                item.myReceive,  // 根據目前 Tab 計算的應收
-                escape(item.note)
-              ];
-              
-              csvContent += row.join(",") + "\n";
-            });
-
-            // 3. 建立下載連結並觸發
-            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-            const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            
-            // 檔名加入日期與目前分頁名稱
-            const fileName = `記帳匯出_${activeTab.value}_${getTodayDate()}.csv`;
-            
-            link.setAttribute("href", url);
-            link.setAttribute("download", fileName);
-            link.style.visibility = "hidden";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          };
-
           onMounted(async () => {
             isInitializing.value = true;
             await Promise.all([ fetchSettings(), fetchData() ]);
@@ -838,14 +781,12 @@
             saveItem, saveBatch, openModal, openBatchModal, closeBatchModal, addBatchRow, removeBatchRow, 
             editItem, closeModal, deleteItem, formatNumber, calcMyPay, calcMyReceive, sortOrder, toggleSort,
             filterBank, bankFilterOptions,
-            scrollContainer, startDrag, stopDrag, doDrag, exportToExcel
+            scrollContainer, startDrag, stopDrag, doDrag
           };
         }
       }).mount("#app");
     </script>
   </body>
 </html>
-
-
 
 
