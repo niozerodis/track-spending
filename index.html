@@ -804,7 +804,7 @@
               const escape = (txt) => txt ? `"${txt.toString().replace(/"/g, '""')}"` : "";
               
               const row = [
-                item.date,
+                `\t${item.date}`,
                 escape(item.payer),
                 escape(item.item),
                 escape(item.sharedWith.join(" & ")), // 用 & 連接人名比較好看
@@ -848,6 +848,7 @@
     </script>
   </body>
 </html>
+
 
 
 
