@@ -157,14 +157,31 @@
                   <div class="text-lg font-bold text-white font-mono tracking-tight">${{ formatNumber(item.amount) }}</div>
                   <div class="text-xs text-zinc-600">{{ item.paymentMethod }}</div>
                 </div>
+                
                 <div class="md:mt-1">
-                  <div v-else-if="item.myReceive > 0" class="text-emerald-400 font-bold text-sm bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-900/50">
-                    <span class="text-xs text-emerald-500/70 mr-1 font-normal">單收</span>${{ formatNumber(item.myReceive) }}
-                  </div>
-                  <div v-if="item.myPay > 0" class="text-rose-400 font-bold text-sm bg-rose-950/30 px-2 py-0.5 rounded border border-rose-900/50">
-                    <span class="text-xs text-rose-500/70 mr-1 font-normal">我付</span>${{ formatNumber(item.myPay) }}
-                  </div>
-                  <div v-else class="text-zinc-600 text-xs italic pr-1">無關</div>
+                  
+                  <template v-if="activeTab === '全部' || activeTab === 'Nio'">
+                    <div v-if="item.myReceive > 0" class="text-emerald-400 font-bold text-sm bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-900/50 mb-1 md:mb-0">
+                      <span class="text-xs text-emerald-500/70 mr-1 font-normal">單收</span>${{ formatNumber(item.myReceive) }}
+                    </div>
+                    <div v-if="item.myPay > 0" class="text-rose-400 font-bold text-sm bg-rose-950/30 px-2 py-0.5 rounded border border-rose-900/50">
+                      <span class="text-xs text-rose-500/70 mr-1 font-normal">我付</span>${{ formatNumber(item.myPay) }}
+                    </div>
+                    <div v-if="item.myReceive === 0 && item.myPay === 0" class="text-zinc-600 text-xs italic pr-1">無關</div>
+                  </template>
+              
+                  <template v-else>
+                    <div v-if="item.payer === 'Nio' && item.sharedWith.includes(activeTab)" class="text-emerald-400 font-bold text-sm bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-900/50">
+                      <span class="text-xs text-emerald-500/70 mr-1 font-normal">單收</span>${{ formatNumber(Math.round(item.amount / item.sharedWith.length)) }}
+                    </div>
+              
+                    <div v-else-if="item.payer === activeTab && item.sharedWith.includes('Nio')" class="text-rose-400 font-bold text-sm bg-rose-950/30 px-2 py-0.5 rounded border border-rose-900/50">
+                      <span class="text-xs text-rose-500/70 mr-1 font-normal">我付</span>${{ formatNumber(Math.round(item.amount / item.sharedWith.length)) }}
+                    </div>
+                    
+                    <div v-else class="text-zinc-600 text-xs italic pr-1">無關</div>
+                  </template>
+              
                 </div>
               </div>
             </div>
@@ -743,4 +760,5 @@
     </script>
   </body>
 </html>
+
 
