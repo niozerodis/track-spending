@@ -542,13 +542,41 @@
           // 頁籤通常使用「分攤名單」比較完整 (包含所有可能出現的人)
           const personTabs = computed(() => ["全部", ...memberList.value]);
 
+          // === 修改後的 Summary 計算邏輯 ===
           const summary = computed(() => {
             const list = filteredItems.value;
-            const totalMyPay = list.reduce((sum, i) => sum + (Number(i.myPay) || 0), 0);
-            const totalMyReceive = list.reduce((sum, i) => {
-               if (i.payer === "Nio") return sum + (Number(i.myReceive) || 0);
-               return sum;
-            }, 0);
+            let totalMyPay = 0;
+            let totalMyReceive = 0;
+
+            // 情況 A: 「全部」或「Nio」分頁 (顯示全域帳務：我的總支出 & 總應收)
+            // 這邊維持原本邏輯：Pay = 我該付的錢(含幫自己付), Receive = 別人欠我的總數
+            if (activeTab.value === "全部" || activeTab.value === "Nio") {
+               totalMyPay = list.reduce((sum, i) => sum + (Number(i.myPay) || 0), 0);
+               totalMyReceive = list.reduce((sum, i) => {
+                  if (i.payer === "Nio") return sum + (Number(i.myReceive) || 0);
+                  return sum;
+               }, 0);
+            } 
+            // 情況 B: 「特定朋友」分頁 (只計算我跟 "這個人" 的債務關係)
+            else {
+               const targetPerson = activeTab.value;
+               
+               list.forEach(item => {
+                  // 計算單價 (無條件四捨五入，跟畫面顯示保持一致)
+                  const unitPrice = Math.round(item.amount / (item.sharedWith.length || 1));
+
+                  // 1. 應付 (Pay): 這個人付錢，且分攤名單有我 -> 我欠他錢
+                  if (item.payer === targetPerson && item.sharedWith.includes("Nio")) {
+                     totalMyPay += unitPrice;
+                  }
+
+                  // 2. 應收 (Receive): 我付錢，且分攤名單有他 -> 他欠我錢
+                  if (item.payer === "Nio" && item.sharedWith.includes(targetPerson)) {
+                     totalMyReceive += unitPrice;
+                  }
+               });
+            }
+
             return { totalMyPay, totalMyReceive };
           });
 
@@ -760,5 +788,6 @@
     </script>
   </body>
 </html>
+
 
 
