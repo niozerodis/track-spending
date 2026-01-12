@@ -668,14 +668,19 @@
             }
           };
 
-          const changeSheet = (newSheet) => {
+          const changeSheet = async (newSheet) => {
              if (newSheet === currentSheet.value) return;
+             
              currentSheet.value = newSheet;
              items.value = []; // 清空當前畫面
              isInitializing.value = true; // 顯示 Loading
-             fetchData(); // 重新讀取該分頁資料
+             
+             // ★ 新增這行：切換分頁時，也要重新讀取該分頁的「成員名單」設定
+             await fetchSettings(); 
+             
+             await fetchData(); // 然後再讀取帳務
           };
-
+          
           const createNewSheet = async () => {
              const name = prompt("請輸入新分頁名稱 (例如: 2026-02)：");
              if (!name) return;
@@ -934,6 +939,7 @@
     </script>
   </body>
 </html>
+
 
 
 
