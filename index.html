@@ -626,7 +626,7 @@
               // 呼叫設定時，也要傳目前的 sheetName (如果有)，雖然讀設定跟 sheet 關係不大，但保持習慣
               const res = await fetch(`${API_URL}?action=get_settings&sheetName=${currentSheet.value}`);
               const data = await res.json();
-              
+              console.log(data);
               if (data.sheets) {
                  sheetList.value = data.sheets;
                  // 如果目前沒有選定分頁，預設選第一個
@@ -939,6 +939,7 @@
     </script>
   </body>
 </html>
+
 
 
 
