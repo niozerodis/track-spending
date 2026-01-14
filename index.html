@@ -778,7 +778,7 @@
             closeBatchModal();
 
             try {
-              const payload = { auth: userPassword, action: "save", data: items.value };
+              const payload = { auth: userPassword, action: "save", data: items.value, sheetName: currentSheet.value };
               const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
               const result = await res.json();
               if (result.status === "error" && result.message.includes("密碼")) {
@@ -939,6 +939,7 @@
     </script>
   </body>
 </html>
+
 
 
 
