@@ -421,226 +421,170 @@
     </div>
 
     <script>
-      const { createApp, ref, computed, onMounted } = Vue;
+     const { createApp, ref, computed, onMounted } = Vue;
 
-      createApp({
-        setup() {
-          const sortOrder = ref('desc');
-          const toggleSort = () => {
-            sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc';
-          };
-
-          const filterBank = ref("全部");
-          const bankFilterOptions = computed(() => ["全部", ...bankList.value]);
-
-          // === 拖曳滾動相關邏輯 ===
-          const scrollContainer = ref(null);
-          const isDragging = ref(false);
-          const startX = ref(0);
-          const scrollLeft = ref(0);
-
-          const startDrag = (e) => {
-            isDragging.value = true;
-            startX.value = e.pageX - scrollContainer.value.offsetLeft;
-            scrollLeft.value = scrollContainer.value.scrollLeft;
-          };
-
-          const stopDrag = () => {
-            isDragging.value = false;
-          };
-
-          const doDrag = (e) => {
-            if (!isDragging.value) return;
-            e.preventDefault(); // 防止選取文字
-            const x = e.pageX - scrollContainer.value.offsetLeft;
-            const walk = (x - startX.value) * 2; // 數字越大捲動越快
-            scrollContainer.value.scrollLeft = scrollLeft.value - walk;
-          };
-          // ======================
-
-          const filteredItems = computed(() => {
-            let list = items.value.filter(i => i.item && i.item.toString().trim() !== "");
+    createApp({
+      setup() {
+        const sortOrder = ref('desc');
+        const toggleSort = () => { sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'; };
+    
+        const filterBank = ref("全部");
+        const bankFilterOptions = computed(() => ["全部", ...bankList.value]);
+    
+        // === 拖曳滾動相關邏輯 ===
+        const scrollContainer = ref(null);
+        const isDragging = ref(false);
+        const startX = ref(0);
+        const scrollLeft = ref(0);
+    
+        const startDrag = (e) => {
+          isDragging.value = true;
+          startX.value = e.pageX - scrollContainer.value.offsetLeft;
+          scrollLeft.value = scrollContainer.value.scrollLeft;
+        };
+        const stopDrag = () => { isDragging.value = false; };
+        const doDrag = (e) => {
+          if (!isDragging.value) return;
+          e.preventDefault();
+          const x = e.pageX - scrollContainer.value.offsetLeft;
+          const walk = (x - startX.value) * 2;
+          scrollContainer.value.scrollLeft = scrollLeft.value - walk;
+        };
+    
+        const filteredItems = computed(() => {
+          let list = items.value.filter(i => i.item && i.item.toString().trim() !== "");
+          if (activeTab.value !== "全部") {
+            list = list.filter(i => i.payer === activeTab.value || i.sharedWith.includes(activeTab.value));
+          }
+          if (filterBank.value !== "全部") {
+            list = list.filter(i => i.paymentMethod === filterBank.value);
+          }
+          return list.sort((a, b) => {
+            const dateA = new Date(a.date).getTime();
+            const dateB = new Date(b.date).getTime();
+            if (dateA === dateB) {
+                const idA = String(a.id);
+                const idB = String(b.id);
+                return sortOrder.value === 'desc' ? idB.localeCompare(idA) : idA.localeCompare(idB);
+            }
+            return sortOrder.value === 'desc' ? dateB - dateA : dateA - dateB;
+          });
+        });
+    
+        const getTodayDate = () => {
+          const d = new Date();
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        };
+        
+        // ⚠️ 請確認這裡是你的正確 API URL
+        const API_URL = "https://script.google.com/macros/s/AKfycbw-0HUE3onUx_mMHa8JCEFkdXQAUArFBtu9EZFmk3qMQAqydnB5e-6CHGPbk0rFyYpbyA/exec";
+    
+        const payerList = ref([]);
+        const memberList = ref([]);
+        const categoryList = ref([]);
+        const bankList = ref([]);
+    
+        const items = ref([]);
+        const isInitializing = ref(true);
+        const isLoading = ref(false);
+        const isSaving = ref(false);
+        const showModal = ref(false);
+        const showBatchModal = ref(false); 
+        const isEditing = ref(false);
+        const activeTab = ref("全部");
+    
+        const defaultForm = {
+          id: null, item: "", date: getTodayDate(), amount: 0, payer: "", sharedWith: [], paidBy: [],
+          category: "", paymentMethod: "", note: ""
+        };
+        const form = ref({ ...defaultForm });
+    
+        const batchForm = ref({ date: getTodayDate(), payer: "", category: "", paymentMethod: "現金" });
+        const batchList = ref([]); 
+    
+        const getPassword = () => {
+          const STORAGE_KEY = "nio_splitwise_secret";
+          let pwd = localStorage.getItem(STORAGE_KEY);
+          if (!pwd) {
+            pwd = prompt("請輸入管理員密碼：");
+            if (pwd) localStorage.setItem(STORAGE_KEY, pwd);
+          }
+          return pwd;
+        };
+    
+        const calcMyPay = computed(() => {
+          if (!form.value.amount || form.value.sharedWith.length === 0) return 0;
+          const unitPrice = Math.round(form.value.amount / form.value.sharedWith.length);
+          return form.value.sharedWith.includes("Nio") ? unitPrice : 0;
+        });
+    
+        const calcMyReceive = computed(() => {
+          if (!form.value.amount || form.value.sharedWith.length === 0) return 0;
+          if (form.value.payer === "Nio") {
+             let receivable = form.value.amount;
+             if (form.value.sharedWith.includes("Nio")) {
+                receivable -= Math.round(form.value.amount / form.value.sharedWith.length);
+             }
+             return receivable > 0 ? receivable : 0;
+          }
+          return 0;
+        });
+    
+        const batchTotal = computed(() => batchList.value.reduce((sum, item) => sum + (Number(item.amount) || 0), 0));
+        const personTabs = computed(() => ["全部", ...memberList.value]);
+    
+        const summary = computed(() => {
+          const list = filteredItems.value;
+          let totalMyPay = 0;
+          let totalMyReceive = 0;
+    
+          if (activeTab.value === "全部" || activeTab.value === "Nio") {
+             totalMyPay = list.reduce((sum, i) => sum + (Number(i.myPay) || 0), 0);
+             totalMyReceive = list.reduce((sum, i) => i.payer === "Nio" ? sum + (Number(i.myReceive) || 0) : sum, 0);
+          } else {
+             const targetPerson = activeTab.value;
+             list.forEach(item => {
+                const unitPrice = Math.round(item.amount / (item.sharedWith.length || 1));
+                if (item.payer === targetPerson && item.sharedWith.includes("Nio")) totalMyPay += unitPrice;
+                if (item.payer === "Nio" && item.sharedWith.includes(targetPerson)) totalMyReceive += unitPrice;
+             });
+          }
+          return { totalMyPay, totalMyReceive };
+        });
+    
+        const toggleShared = (name) => {
+          const idx = form.value.sharedWith.indexOf(name);
+          if (idx === -1) form.value.sharedWith.push(name); else form.value.sharedWith.splice(idx, 1);
+        };
+    
+        const togglePaidBy = (name) => {
+          if (!form.value.paidBy) form.value.paidBy = [];
+          const idx = form.value.paidBy.indexOf(name);
+          if (idx === -1) form.value.paidBy.push(name); else form.value.paidBy.splice(idx, 1);
+        };
+    
+        const sheetList = ref([]);
+        const currentSheet = ref(""); 
+    
+        // === 🚀 核心優化：合併讀取設定與資料 ===
+        const fetchInitData = async () => {
+          isInitializing.value = true;
+          try {
+            const url = `${API_URL}?action=init&sheetName=${encodeURIComponent(currentSheet.value)}`;
+            const res = await fetch(url);
+            const result = await res.json();
             
-            if (activeTab.value !== "全部") {
-              list = list.filter(i => i.payer === activeTab.value || i.sharedWith.includes(activeTab.value));
-            }
-
-            if (filterBank.value !== "全部") {
-              list = list.filter(i => i.paymentMethod === filterBank.value);
-            }
-           
-            return list.sort((a, b) => {
-              const dateA = new Date(a.date).getTime();
-              const dateB = new Date(b.date).getTime();
-              
-              if (dateA === dateB) {
-                  const idA = String(a.id);
-                  const idB = String(b.id);
-                  return sortOrder.value === 'desc' ? idB.localeCompare(idA) : idA.localeCompare(idB);
+            // 解析設定
+            if (result.settings) {
+              if (result.settings.sheets) {
+                 sheetList.value = result.settings.sheets;
+                 if (!currentSheet.value && sheetList.value.length > 0) currentSheet.value = sheetList.value[0];
               }
-
-              if (sortOrder.value === 'desc') {
-                return dateB - dateA;
-              } else {
-                return dateA - dateB;
-              }
-            });
-          });
-
-          const getTodayDate = () => {
-            const d = new Date();
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, "0");
-            const day = String(d.getDate()).padStart(2, "0");
-            return `${year}-${month}-${day}`;
-          };
-          
-          const API_URL = "https://script.google.com/macros/s/AKfycbw-0HUE3onUx_mMHa8JCEFkdXQAUArFBtu9EZFmk3qMQAqydnB5e-6CHGPbk0rFyYpbyA/exec";
-
-          // 分別定義兩個名單
-          const payerList = ref([]);
-          const memberList = ref([]);
-          const categoryList = ref([]);
-          const bankList = ref([]);
-
-          const items = ref([]);
-          const isInitializing = ref(true);
-          const isLoading = ref(false);
-          const isSaving = ref(false);
-          const showModal = ref(false);
-          const showBatchModal = ref(false); 
-          const isEditing = ref(false);
-          const activeTab = ref("全部");
-
-          const defaultForm = {
-            id: null, item: "", 
-            date: getTodayDate(), amount: 0, payer: "", sharedWith: [], paidBy: [],
-            category: "", paymentMethod: "", note: ""
-          };
-          const form = ref({ ...defaultForm });
-
-          const batchForm = ref({
-            date: getTodayDate(),
-            payer: "",
-            category: "", 
-            paymentMethod: "現金"
-          });
-          const batchList = ref([]); 
-
-          const getPassword = () => {
-            const STORAGE_KEY = "nio_splitwise_secret";
-            let pwd = localStorage.getItem(STORAGE_KEY);
-            if (!pwd) {
-              pwd = prompt("請輸入管理員密碼：");
-              if (pwd) localStorage.setItem(STORAGE_KEY, pwd);
-            }
-            return pwd;
-          };
-
-          const calcMyPay = computed(() => {
-            if (!form.value.amount || form.value.sharedWith.length === 0) return 0;
-            const unitPrice = Math.round(form.value.amount / form.value.sharedWith.length);
-            if (form.value.sharedWith.includes("Nio")) {
-              return unitPrice;
-            }
-            return 0;
-          });
-
-          const calcMyReceive = computed(() => {
-            if (!form.value.amount || form.value.sharedWith.length === 0) return 0;
-            if (form.value.payer === "Nio") {
-               let receivable = form.value.amount;
-               if (form.value.sharedWith.includes("Nio")) {
-                  const unitPrice = Math.round(form.value.amount / form.value.sharedWith.length);
-                  receivable -= unitPrice;
-               }
-               return receivable > 0 ? receivable : 0;
-            }
-            return 0;
-          });
-
-          const batchTotal = computed(() => {
-            return batchList.value.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-          });
-
-          // 頁籤通常使用「分攤名單」比較完整 (包含所有可能出現的人)
-          const personTabs = computed(() => ["全部", ...memberList.value]);
-
-          // === 修改後的 Summary 計算邏輯 ===
-          const summary = computed(() => {
-            const list = filteredItems.value;
-            let totalMyPay = 0;
-            let totalMyReceive = 0;
-
-            // 情況 A: 「全部」或「Nio」分頁 (顯示全域帳務：我的總支出 & 總應收)
-            // 這邊維持原本邏輯：Pay = 我該付的錢(含幫自己付), Receive = 別人欠我的總數
-            if (activeTab.value === "全部" || activeTab.value === "Nio") {
-               totalMyPay = list.reduce((sum, i) => sum + (Number(i.myPay) || 0), 0);
-               totalMyReceive = list.reduce((sum, i) => {
-                  if (i.payer === "Nio") return sum + (Number(i.myReceive) || 0);
-                  return sum;
-               }, 0);
-            } 
-            // 情況 B: 「特定朋友」分頁 (只計算我跟 "這個人" 的債務關係)
-            else {
-               const targetPerson = activeTab.value;
-               
-               list.forEach(item => {
-                  // 計算單價 (無條件四捨五入，跟畫面顯示保持一致)
-                  const unitPrice = Math.round(item.amount / (item.sharedWith.length || 1));
-
-                  // 1. 應付 (Pay): 這個人付錢，且分攤名單有我 -> 我欠他錢
-                  if (item.payer === targetPerson && item.sharedWith.includes("Nio")) {
-                     totalMyPay += unitPrice;
-                  }
-
-                  // 2. 應收 (Receive): 我付錢，且分攤名單有他 -> 他欠我錢
-                  if (item.payer === "Nio" && item.sharedWith.includes(targetPerson)) {
-                     totalMyReceive += unitPrice;
-                  }
-               });
-            }
-
-            return { totalMyPay, totalMyReceive };
-          });
-
-          const toggleShared = (name) => {
-            const idx = form.value.sharedWith.indexOf(name);
-            if (idx === -1) form.value.sharedWith.push(name);
-            else form.value.sharedWith.splice(idx, 1);
-          };
-
-          const togglePaidBy = (name) => {
-            if (!form.value.paidBy) form.value.paidBy = [];
-            const idx = form.value.paidBy.indexOf(name);
-            if (idx === -1) form.value.paidBy.push(name);
-            else form.value.paidBy.splice(idx, 1);
-          };
-
-          // === 新增：分頁管理變數 ===
-          const sheetList = ref([]);
-          const currentSheet = ref(""); // 目前選中的分頁名稱
-
-          // 修改 fetchSettings：讀取後端回傳的分頁清單
-          const fetchSettings = async () => {
-            try {
-              // 呼叫設定時，也要傳目前的 sheetName (如果有)，雖然讀設定跟 sheet 關係不大，但保持習慣
-              const res = await fetch(`${API_URL}?action=get_settings&sheetName=${currentSheet.value}`);
-              const data = await res.json();
-              if (data.sheets) {
-                 sheetList.value = data.sheets;
-                 // 如果目前沒有選定分頁，預設選第一個
-                 if (!currentSheet.value && sheetList.value.length > 0) {
-                    currentSheet.value = sheetList.value[0];
-                 }
-              }
-              
-              if (data.payers) payerList.value = data.payers;
-              if (data.members) memberList.value = data.members;
-              if (data.categories) categoryList.value = data.categories;
-              if (data.banks) bankList.value = data.banks;
-              
-              // 設定預設值
+              if (result.settings.payers) payerList.value = result.settings.payers;
+              if (result.settings.members) memberList.value = result.settings.members;
+              if (result.settings.categories) categoryList.value = result.settings.categories;
+              if (result.settings.banks) bankList.value = result.settings.banks;
+    
               if (payerList.value.length > 0) {
                 defaultForm.payer = payerList.value[0];
                 batchForm.value.payer = payerList.value[0];
@@ -650,292 +594,242 @@
                 batchForm.value.category = categoryList.value[0]; 
               }
               if (bankList.value.length > 0) defaultForm.paymentMethod = bankList.value[0];
-            } catch (e) { console.error("設定讀取失敗", e); }
-          };
-
-          const fetchData = async () => {
-            // 如果還沒決定 sheet，就先不讀取
-            if (!currentSheet.value) return; 
-
-            isLoading.value = true;
-            try {
-              // ★ 關鍵：傳送 sheetName 參數
-              const res = await fetch(`${API_URL}?sheetName=${encodeURIComponent(currentSheet.value)}`);
-              items.value = await res.json();
-            } catch (e) { alert("讀取失敗，請檢查網路"); } finally { 
-               isInitializing.value = false; 
-               isLoading.value = false;
             }
-          };
-
-          const changeSheet = async (newSheet) => {
-             if (newSheet === currentSheet.value) return;
-             
-             currentSheet.value = newSheet;
-             items.value = []; // 清空當前畫面
-             isInitializing.value = true; // 顯示 Loading
-             
-             // ★ 新增這行：切換分頁時，也要重新讀取該分頁的「成員名單」設定
-             await fetchSettings(); 
-             
-             await fetchData(); // 然後再讀取帳務
-          };
-          
-          const createNewSheet = async () => {
-             const name = prompt("請輸入新分頁名稱 (例如: 2026-02)：");
-             if (!name) return;
-             
-             const userPassword = getPassword();
-             if (!userPassword) return;
-
-             isInitializing.value = true; // 顯示轉圈圈
-             
-             try {
-                const payload = { 
-                   auth: userPassword, 
-                   action: "create_sheet", 
-                   newSheetName: name,
-                   sheetName: currentSheet.value // 傳當前的當作參考
-                };
-                
-                const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-                const result = await res.json();
-                
-                if (result.status === "success") {
-                   alert("建立成功！");
-                   sheetList.value = result.sheets; // 更新清單
-                   currentSheet.value = name; // 自動切換到新分頁
-                   items.value = []; // 新分頁應該是空的
-                   fetchData();
-                } else {
-                   alert("建立失敗：" + (result.message || "未知錯誤"));
-                   isInitializing.value = false;
-                }
-             } catch(e) {
-                alert("建立請求失敗");
-                isInitializing.value = false;
-             }
-          };
-
-          const closeModal = () => { showModal.value = false; };
-          
-          const closeBatchModal = () => { showBatchModal.value = false; };
-          
-          const openBatchModal = () => { 
-            batchForm.value.date = getTodayDate();
-            if(categoryList.value.length > 0) batchForm.value.category = categoryList.value[0];
-            
-            // 預設擁有者使用 memberList
-            const defaultOwner = memberList.value.length > 0 ? memberList.value[0] : "";
-            batchList.value = [
-              { name: "", amount: null, owner: defaultOwner, note: "" },
-              { name: "", amount: null, owner: defaultOwner, note: "" }
-            ];
-            showBatchModal.value = true; 
-          };
-
-          const addBatchRow = () => { 
-             const defaultOwner = memberList.value.length > 0 ? memberList.value[0] : "";
-             batchList.value.push({ name: "", amount: null, owner: defaultOwner, note: "" }); 
-          };
-          
-          const removeBatchRow = (idx) => { if(batchList.value.length > 1) batchList.value.splice(idx, 1); };
-          
-          const saveBatch = async () => {
-            const validItems = batchList.value.filter(i => i.name && i.amount && i.owner);
-            if (validItems.length === 0) { alert("請至少輸入一筆完整的明細"); return; }
-
-            const userPassword = getPassword();
-            if (!userPassword) return;
-
-            const newRecords = validItems.map(detail => {
-              let myPay = 0;
-              let myReceive = 0;
-              const isPayerMe = batchForm.value.payer === "Nio";
-              const isOwnerMe = detail.owner === "Nio";
-
-              if (isOwnerMe) myPay = detail.amount;
-              if (isPayerMe && !isOwnerMe) myReceive = detail.amount;
-
-              return {
-                id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-                date: batchForm.value.date,
-                item: detail.name, 
-                amount: detail.amount,
-                payer: batchForm.value.payer,
-                sharedWith: [detail.owner], 
-                paidBy: [], 
-                category: batchForm.value.category,
-                paymentMethod: batchForm.value.paymentMethod,
-                note: detail.note || "", 
-                myPay: myPay,
-                myReceive: myReceive
-              };
-            });
-
-            isSaving.value = true;
-            items.value.unshift(...newRecords); 
-            closeBatchModal();
-
-            try {
-              const payload = { auth: userPassword, action: "save", data: items.value, sheetName: currentSheet.value };
+    
+            // 解析資料
+            if (result.data) {
+              items.value = result.data;
+            }
+    
+          } catch (e) {
+            console.error("初始化失敗", e);
+            alert("讀取失敗，請檢查網路");
+          } finally { 
+             isInitializing.value = false; 
+          }
+        };
+    
+        const changeSheet = async (newSheet) => {
+           if (newSheet === currentSheet.value) return;
+           currentSheet.value = newSheet;
+           items.value = []; 
+           await fetchInitData(); // 切換分頁時一次拿回所有資料
+        };
+        
+        const createNewSheet = async () => {
+           const name = prompt("請輸入新分頁名稱 (例如: 2026-02)：");
+           if (!name) return;
+           const userPassword = getPassword();
+           if (!userPassword) return;
+    
+           isInitializing.value = true;
+           try {
+              const payload = { auth: userPassword, action: "create_sheet", newSheetName: name, sheetName: currentSheet.value };
               const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
               const result = await res.json();
-              if (result.status === "error" && result.message.includes("密碼")) {
-                localStorage.removeItem("nio_splitwise_secret");
-                alert("密碼錯誤，請重新操作");
-                fetchData();
-              }
-            } catch (e) { alert("儲存失敗"); fetchData(); } finally { isSaving.value = false; }
-          };
-
-          const saveItem = async () => {
-            const userPassword = getPassword();
-            if (!userPassword) return;
-            form.value.myPay = calcMyPay.value;
-            form.value.myReceive = calcMyReceive.value;
-            isSaving.value = true;
-            try {
-              const payload = { auth: userPassword, action: "save", data: isEditing.value ? items.value.map(i => i.id === form.value.id ? form.value : i) : [form.value, ...items.value], sheetName: currentSheet.value };
-              if (isEditing.value) {
-                const idx = items.value.findIndex(i => i.id === form.value.id);
-                if (idx !== -1) items.value[idx] = { ...form.value };
+              
+              if (result.status === "success") {
+                 alert("建立成功！");
+                 sheetList.value = result.sheets; 
+                 currentSheet.value = name; 
+                 items.value = []; 
+                 await fetchInitData();
               } else {
-                form.value.id = Date.now().toString();
-                items.value.unshift({ ...form.value });
+                 alert("建立失敗：" + (result.message || "未知錯誤"));
+                 isInitializing.value = false;
               }
-              closeModal();
-              const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-              const result = await res.json();
-              if (result.status === "error" && result.message && result.message.includes("密碼")) {
-                localStorage.removeItem("nio_splitwise_secret");
-                alert("密碼錯誤，請重新操作");
-                fetchData();
-              }
-            } catch (e) { alert("儲存失敗"); fetchData(); } finally { isSaving.value = false; }
-          };
-
-          const openModal = () => {
-            isEditing.value = false;
-            form.value = { 
-                ...defaultForm, 
-                date: getTodayDate(), 
-                sharedWith: [], paidBy: [],
-                payer: form.value.payer || (payerList.value[0] || ""),
-                category: form.value.category || (categoryList.value[0] || ""),
-                paymentMethod: form.value.paymentMethod || (bankList.value[0] || "")
-            }; 
-            showModal.value = true;
-          };
-
-          const editItem = (item) => {
-            isEditing.value = true;
-            const data = JSON.parse(JSON.stringify(item));
-            if (!Array.isArray(data.paidBy)) data.paidBy = []; 
-            form.value = data;
-            showModal.value = true;
-          };
-
-          const deleteItem = async (id) => {
-            if (!confirm("確定刪除?")) return;
-            const userPassword = getPassword();
-            if (!userPassword) return;
-            const originalItems = [...items.value];
-            items.value = items.value.filter(i => i.id !== id);
-            closeModal(); 
-            isSaving.value = true;
-            try {
-              const payload = { auth: userPassword, action: "save", data: items.value, sheetName: currentSheet.value };
-              const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-              const result = await res.json();
-              if (result.status === "error") {
-                if (result.message.includes("密碼")) {
-                  localStorage.removeItem("nio_splitwise_secret");
-                  alert("密碼錯誤");
-                }
-                items.value = originalItems;
-              }
-            } catch (e) { alert("刪除失敗"); items.value = originalItems; } finally { isSaving.value = false; }
-          };
-
-          const formatNumber = (n) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-
-          const exportToExcel = () => {
-            const list = filteredItems.value;
-            // 直接讀取我們剛剛修好的 summary 計算結果
-            // 它已經會根據 Tab 是「全部」還是「特定人」自動給出正確的應付/應收數字
-            const stats = summary.value; 
-
-            if (list.length === 0) {
-              alert("沒有資料可以匯出");
-              return;
-            }
-
-            // \uFEFF 是 BOM，確保 Excel 開啟時中文不亂碼
-            let csvContent = "\uFEFF"; 
-
-            // === 第一部分：頂部統計資訊 ===
-            // 這裡顯示的金額，完全對應網頁上方看到的紅色/綠色數字
-            csvContent += `統計模式,${activeTab.value}\n`;
-            csvContent += `總應收 (Receive),${stats.totalMyReceive}\n`;
-            csvContent += `總應付 (Pay),${stats.totalMyPay}\n`;
-            csvContent += `\n`; // 空一行分隔
-
-            // === 第二部分：標題列 ===
-            // 依照您的要求：日期、付款人、項目、分攤對象、單收的金額
-            csvContent += "日期,付款人,項目,分攤對象,單收金額(每人)\n";
-
-            // === 第三部分：詳細資料 ===
-            list.forEach(item => {
-              // 計算單收金額 (總額 / 人數)
-              const unitPrice = Math.round(item.amount / (item.sharedWith.length || 1));
-              
-              // 處理文字中的逗號 (CSV 格式需求)
-              const escape = (txt) => txt ? `"${txt.toString().replace(/"/g, '""')}"` : "";
-              
-              const row = [
-                `\t${item.date}`,
-                escape(item.payer),
-                escape(item.item),
-                escape(item.sharedWith.join(" & ")), // 用 & 連接人名比較好看
-                unitPrice // 這就是「單收金額」
-              ];
-              
-              csvContent += row.join(",") + "\n";
-            });
-
-            // === 觸發下載 ===
-            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-            const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            const fileName = `帳務匯出_${activeTab.value}_${getTodayDate()}.csv`;
-            
-            link.setAttribute("href", url);
-            link.setAttribute("download", fileName);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          };
-
-          onMounted(async () => {
-            isInitializing.value = true;
-            await fetchSettings();
-            await fetchData();
+           } catch(e) {
+              alert("建立請求失敗");
+              isInitializing.value = false;
+           }
+        };
+    
+        const closeModal = () => { showModal.value = false; };
+        const closeBatchModal = () => { showBatchModal.value = false; };
+        
+        const openBatchModal = () => { 
+          batchForm.value.date = getTodayDate();
+          if(categoryList.value.length > 0) batchForm.value.category = categoryList.value[0];
+          const defaultOwner = memberList.value.length > 0 ? memberList.value[0] : "";
+          batchList.value = [
+            { name: "", amount: null, owner: defaultOwner, note: "" },
+            { name: "", amount: null, owner: defaultOwner, note: "" }
+          ];
+          showBatchModal.value = true; 
+        };
+    
+        const addBatchRow = () => { 
+           const defaultOwner = memberList.value.length > 0 ? memberList.value[0] : "";
+           batchList.value.push({ name: "", amount: null, owner: defaultOwner, note: "" }); 
+        };
+        const removeBatchRow = (idx) => { if(batchList.value.length > 1) batchList.value.splice(idx, 1); };
+        
+        const saveBatch = async () => {
+          if (isSaving.value) return; // 防止連點
+          const validItems = batchList.value.filter(i => i.name && i.amount && i.owner);
+          if (validItems.length === 0) { alert("請至少輸入一筆完整的明細"); return; }
+    
+          const userPassword = getPassword();
+          if (!userPassword) return;
+    
+          const newRecords = validItems.map(detail => {
+            let myPay = 0, myReceive = 0;
+            const isPayerMe = batchForm.value.payer === "Nio";
+            const isOwnerMe = detail.owner === "Nio";
+    
+            if (isOwnerMe) myPay = detail.amount;
+            if (isPayerMe && !isOwnerMe) myReceive = detail.amount;
+    
+            return {
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+              date: batchForm.value.date, item: detail.name, amount: detail.amount,
+              payer: batchForm.value.payer, sharedWith: [detail.owner], paidBy: [], 
+              category: batchForm.value.category, paymentMethod: batchForm.value.paymentMethod,
+              note: detail.note || "", myPay: myPay, myReceive: myReceive
+            };
           });
-
-          return {
-            items, payerList, memberList, categoryList, bankList,
-            activeTab, personTabs, filteredItems, summary, 
-            showModal, showBatchModal, isEditing, form, batchForm, batchList, batchTotal, 
-            isInitializing, isLoading, isSaving, 
-            toggleShared, togglePaidBy, 
-            saveItem, saveBatch, openModal, openBatchModal, closeBatchModal, addBatchRow, removeBatchRow, 
-            editItem, closeModal, deleteItem, formatNumber, calcMyPay, calcMyReceive, sortOrder, toggleSort,
-            filterBank, bankFilterOptions,
-            scrollContainer, startDrag, stopDrag, doDrag, exportToExcel, sheetList, currentSheet, changeSheet, createNewSheet
-          };
-        }
-      }).mount("#app");
+    
+          isSaving.value = true;
+          items.value.unshift(...newRecords); 
+          closeBatchModal();
+    
+          try {
+            const payload = { auth: userPassword, action: "save", data: items.value, sheetName: currentSheet.value };
+            const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+            const result = await res.json();
+            if (result.status === "error" && result.message.includes("密碼")) {
+              localStorage.removeItem("nio_splitwise_secret");
+              alert("密碼錯誤，請重新操作");
+              await fetchInitData();
+            }
+          } catch (e) { alert("儲存失敗"); await fetchInitData(); } finally { isSaving.value = false; }
+        };
+    
+        const saveItem = async () => {
+          if (isSaving.value) return; // 防止連點
+          const userPassword = getPassword();
+          if (!userPassword) return;
+          form.value.myPay = calcMyPay.value;
+          form.value.myReceive = calcMyReceive.value;
+          isSaving.value = true;
+          
+          try {
+            const payload = { auth: userPassword, action: "save", data: isEditing.value ? items.value.map(i => i.id === form.value.id ? form.value : i) : [form.value, ...items.value], sheetName: currentSheet.value };
+            
+            // 樂觀更新前端畫面
+            if (isEditing.value) {
+              const idx = items.value.findIndex(i => i.id === form.value.id);
+              if (idx !== -1) items.value[idx] = { ...form.value };
+            } else {
+              form.value.id = Date.now().toString();
+              items.value.unshift({ ...form.value });
+            }
+            closeModal();
+            
+            const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+            const result = await res.json();
+            if (result.status === "error" && result.message && result.message.includes("密碼")) {
+              localStorage.removeItem("nio_splitwise_secret");
+              alert("密碼錯誤，請重新操作");
+              await fetchInitData();
+            }
+          } catch (e) { alert("儲存失敗"); await fetchInitData(); } finally { isSaving.value = false; }
+        };
+    
+        const openModal = () => {
+          isEditing.value = false;
+          form.value = { 
+              ...defaultForm, date: getTodayDate(), sharedWith: [], paidBy: [],
+              payer: form.value.payer || (payerList.value[0] || ""),
+              category: form.value.category || (categoryList.value[0] || ""),
+              paymentMethod: form.value.paymentMethod || (bankList.value[0] || "")
+          }; 
+          showModal.value = true;
+        };
+    
+        const editItem = (item) => {
+          isEditing.value = true;
+          const data = JSON.parse(JSON.stringify(item));
+          if (!Array.isArray(data.paidBy)) data.paidBy = []; 
+          form.value = data;
+          showModal.value = true;
+        };
+    
+        const deleteItem = async (id) => {
+          if (isSaving.value) return; // 防止連點
+          if (!confirm("確定刪除?")) return;
+          const userPassword = getPassword();
+          if (!userPassword) return;
+          
+          const originalItems = [...items.value];
+          items.value = items.value.filter(i => i.id !== id);
+          closeModal(); 
+          isSaving.value = true;
+          
+          try {
+            const payload = { auth: userPassword, action: "save", data: items.value, sheetName: currentSheet.value };
+            const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+            const result = await res.json();
+            if (result.status === "error") {
+              if (result.message.includes("密碼")) {
+                localStorage.removeItem("nio_splitwise_secret");
+                alert("密碼錯誤");
+              }
+              items.value = originalItems;
+            }
+          } catch (e) { alert("刪除失敗"); items.value = originalItems; } finally { isSaving.value = false; }
+        };
+    
+        const formatNumber = (n) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    
+        const exportToExcel = () => {
+          const list = filteredItems.value;
+          const stats = summary.value; 
+    
+          if (list.length === 0) {
+            alert("沒有資料可以匯出");
+            return;
+          }
+    
+          let csvContent = "\uFEFF"; 
+          csvContent += `統計模式,${activeTab.value}\n總應收 (Receive),${stats.totalMyReceive}\n總應付 (Pay),${stats.totalMyPay}\n\n`;
+          csvContent += "日期,付款人,項目,分攤對象,單收金額(每人)\n";
+    
+          list.forEach(item => {
+            const unitPrice = Math.round(item.amount / (item.sharedWith.length || 1));
+            const escape = (txt) => txt ? `"${txt.toString().replace(/"/g, '""')}"` : "";
+            const row = [ `\t${item.date}`, escape(item.payer), escape(item.item), escape(item.sharedWith.join(" & ")), unitPrice ];
+            csvContent += row.join(",") + "\n";
+          });
+    
+          const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+          const link = document.createElement("a");
+          const url = URL.createObjectURL(blob);
+          link.setAttribute("href", url);
+          link.setAttribute("download", `帳務匯出_${activeTab.value}_${getTodayDate()}.csv`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        };
+    
+        onMounted(async () => {
+          // 初始化：一次呼叫完成讀取
+          await fetchInitData();
+        });
+    
+        return {
+          items, payerList, memberList, categoryList, bankList,
+          activeTab, personTabs, filteredItems, summary, 
+          showModal, showBatchModal, isEditing, form, batchForm, batchList, batchTotal, 
+          isInitializing, isLoading, isSaving, 
+          toggleShared, togglePaidBy, 
+          saveItem, saveBatch, openModal, openBatchModal, closeBatchModal, addBatchRow, removeBatchRow, 
+          editItem, closeModal, deleteItem, formatNumber, calcMyPay, calcMyReceive, sortOrder, toggleSort,
+          filterBank, bankFilterOptions,
+          scrollContainer, startDrag, stopDrag, doDrag, exportToExcel, sheetList, currentSheet, changeSheet, createNewSheet
+        };
+      }
+    }).mount("#app");
     </script>
   </body>
 </html>
