@@ -14,16 +14,18 @@
       ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
       .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
       .fade-enter-from, .fade-leave-to { opacity: 0; }
+      .slide-up-enter-active, .slide-up-leave-active { transition: transform 0.3s ease, opacity 0.3s ease; }
+      .slide-up-enter-from, .slide-up-leave-to { transform: translateY(100%); opacity: 0; }
       .no-scrollbar::-webkit-scrollbar { display: none; }
       html, body { font-size: 14px; }
-      /* 加入抓取游標樣式 */
       .cursor-grab { cursor: grab; }
       .cursor-grabbing { cursor: grabbing; }
     </style>
   </head>
   <body>
-    <div id="app" class="min-h-screen pb-20 bg-zinc-950 text-zinc-200">
+    <div id="app" class="min-h-screen pb-24 bg-zinc-950 text-zinc-200">
       
+      <!-- 讀取中遮罩 -->
       <transition name="fade">
         <div v-if="isInitializing" class="fixed inset-0 z-[9999] bg-zinc-950 flex flex-col items-center justify-center">
           <i class="fa-solid fa-wallet fa-spin text-5xl text-zinc-500 mb-4"></i>
@@ -64,11 +66,16 @@
           </div>
           
           <div class="flex gap-2 shrink-0">
+            <!-- 批次編輯按鈕 -->
+            <button @click="toggleBatchMode()" :class="isBatchMode ? 'bg-indigo-700 text-white border-indigo-600' : 'bg-zinc-800 text-zinc-200 hover:bg-zinc-700 border-zinc-700'" class="px-2 sm:px-3 py-1.5 rounded text-sm font-bold transition flex items-center gap-1.5 border shadow-sm" title="批次編輯">
+              <i class="fa-solid fa-list-check"></i> <span class="hidden sm:inline">{{ isBatchMode ? '取消批次' : '批次' }}</span>
+            </button>
+            
             <button @click="exportToExcel()" class="bg-emerald-800 hover:bg-emerald-700 text-zinc-200 w-8 h-8 sm:w-9 sm:h-9 rounded flex items-center justify-center border border-emerald-700 transition shadow-lg" title="匯出 Excel">
               <i class="fa-solid fa-file-csv text-sm"></i>
             </button>
-            <button @click="openBatchModal()" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded text-sm font-bold transition flex items-center gap-1.5 border border-zinc-700">
-              <i class="fa-solid fa-layer-group text-xs"></i> 團購
+            <button @click="openBatchModal()" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-2 sm:px-3 py-1.5 rounded text-sm font-bold transition flex items-center gap-1.5 border border-zinc-700">
+              <i class="fa-solid fa-layer-group text-xs"></i> <span class="hidden sm:inline">團購</span>
             </button>
             <button @click="openModal()" class="bg-zinc-100 hover:bg-white text-black px-3 sm:px-4 py-1.5 rounded text-sm font-bold transition flex items-center gap-1.5 shadow hover:shadow-md">
               <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">記一筆</span>
@@ -100,7 +107,7 @@
 
             <div class="shrink-0 py-2 pl-2 border-l border-zinc-800">
               <div class="relative">
-                <select v-model="filterBank" class="w-32 bg-zinc-800 text-zinc-200 text-xs font-bold border border-zinc-700 rounded py-1.5 pl-2 pr-6 appearance-none focus:border-zinc-500 outline-none cursor-pointer">
+                <select v-model="filterBank" class="w-28 sm:w-32 bg-zinc-800 text-zinc-200 text-xs font-bold border border-zinc-700 rounded py-1.5 pl-2 pr-6 appearance-none focus:border-zinc-500 outline-none cursor-pointer">
                   <option v-for="b in bankFilterOptions" :value="b">{{ b }}</option>
                 </select>
                 <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-zinc-500">
@@ -127,8 +134,10 @@
       </div>
 
       <div class="max-w-[1200px] mx-auto px-4 mt-4 pb-10">
-        <div class="hidden md:grid grid-cols-12 gap-4 px-4 py-2 text-xs font-bold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 mb-2">
+        <!-- 列表標題 (含全選 Checkbox) -->
+        <div class="hidden md:grid grid-cols-12 gap-4 px-4 py-2 text-xs font-bold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 mb-2 items-center">
           <div class="col-span-2 cursor-pointer select-none flex items-center gap-2 hover:text-zinc-300 transition" @click="toggleSort">
+            <input v-if="isBatchMode" type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" class="w-4 h-4 mr-1 accent-indigo-500 cursor-pointer" @click.stop>
             日期 / 付款人
             <i class="fa-solid" :class="sortOrder === 'desc' ? 'fa-sort-down mb-1' : 'fa-sort-up mt-1'"></i>
           </div>
@@ -142,13 +151,20 @@
           <p class="text-sm font-medium">沒有相關紀錄</p>
         </div>
 
-        <div class="space-y-2">
-          <div v-for="item in filteredItems" :key="item.id" class="group bg-zinc-900 hover:bg-zinc-800/80 border border-zinc-800 rounded-lg transition-colors duration-150 relative overflow-hidden">
+        <!-- 列表本體 -->
+        <div class="space-y-2 relative">
+          <div v-for="item in filteredItems" :key="item.id" class="group bg-zinc-900 hover:bg-zinc-800/80 border border-zinc-800 rounded-lg transition-colors duration-150 relative overflow-hidden" :class="{'ring-1 ring-indigo-500': selectedIds.includes(item.id)}">
             <div class="absolute left-0 top-0 bottom-0 w-1" :class="item.payer === 'Nio' ? 'bg-emerald-500' : 'bg-rose-500'"></div>
 
-            <div class="p-3 pl-4 pr-16 md:pr-3 grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 items-center">
+            <!-- 批次模式 Checkbox -->
+            <div v-if="isBatchMode" class="absolute left-3 top-1/2 -translate-y-1/2 z-10">
+              <input type="checkbox" :value="item.id" v-model="selectedIds" class="w-5 h-5 accent-indigo-500 rounded cursor-pointer border-zinc-700">
+            </div>
+
+            <!-- 根據是否為批次模式調整 padding -->
+            <div class="p-3 pr-16 md:pr-3 grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 items-center transition-all duration-200" :class="isBatchMode ? 'pl-11' : 'pl-4'">
               
-              <div class="md:col-span-2 flex md:flex-col justify-start gap-3 items-center md:items-start">
+              <div class="md:col-span-2 flex md:flex-col justify-start gap-3 items-center md:items-start cursor-pointer" @click="isBatchMode ? toggleSelection(item.id) : null">
                 <div class="text-zinc-400 font-mono text-sm">{{ item.date }}</div>
                 <div class="flex items-center gap-2 md:mt-1">
                   <span class="text-sm font-bold text-zinc-300 bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700">{{ item.payer }}</span>
@@ -156,7 +172,7 @@
                 </div>
               </div>
 
-              <div class="md:col-span-4">
+              <div class="md:col-span-4 cursor-pointer" @click="isBatchMode ? toggleSelection(item.id) : null">
                 <div class="flex items-center gap-2 mb-1 md:mb-0">
                   <span class="text-base font-bold text-white truncate">{{ item.item }}</span>
                   <span class="text-xs text-zinc-500 border border-zinc-700 px-1.5 rounded">{{ item.category }}</span>
@@ -183,7 +199,6 @@
                 </div>
                 
                 <div class="md:mt-1">
-                  
                   <template v-if="activeTab === '全部' || activeTab === 'Nio'">
                     <div v-if="item.myReceive > 0" class="text-emerald-400 font-bold text-sm bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-900/50 mb-1 md:mb-0">
                       <span class="text-xs text-emerald-500/70 mr-1 font-normal">單收</span>${{ formatNumber(item.myReceive) }}
@@ -205,12 +220,11 @@
                     
                     <div v-else class="text-zinc-600 text-xs italic pr-1">無關</div>
                   </template>
-              
                 </div>
               </div>
             </div>
 
-            <div class="absolute top-2 right-2 flex gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+            <div v-if="!isBatchMode" class="absolute top-2 right-2 flex gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
               <button @click.stop="editItem(item)" class="w-8 h-8 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center border border-zinc-700 shadow-md">
                 <i class="fa-solid fa-pen text-xs"></i>
               </button>
@@ -222,8 +236,38 @@
         </div>
       </div>
 
+      <!-- 批次編輯底部操作列 -->
+      <transition name="slide-up">
+        <div v-if="isBatchMode" class="fixed bottom-0 left-0 right-0 bg-zinc-900/95 backdrop-blur-md border-t border-zinc-800 p-3 pb-safe z-[60] shadow-[0_-10px_30px_rgba(0,0,0,0.6)]">
+          <div class="max-w-[1200px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 px-2">
+            <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-bold text-white bg-indigo-900/50 px-2 py-1 rounded border border-indigo-500/30">
+                  已選 {{ selectedIds.length }} 筆
+                </span>
+                <button class="text-indigo-400 hover:text-indigo-300 text-sm font-medium underline underline-offset-2 ml-1" @click="toggleSelectAll">
+                  {{ isAllSelected ? '取消全選' : '全選' }}
+                </button>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <select v-model="batchActionPerson" class="flex-1 sm:flex-none w-auto min-w-[110px] bg-zinc-800 border border-zinc-700 rounded py-2 px-3 text-sm font-bold text-white outline-none focus:border-indigo-500 appearance-none">
+                <option value="" disabled>選擇還款對象</option>
+                <option v-for="p in memberList" :value="p">{{ p }}</option>
+              </select>
+              
+              <button @click="executeBatchPaid" class="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded font-bold text-sm transition text-white shadow flex items-center justify-center gap-1">
+                <i class="fa-solid fa-check-double text-xs"></i> 設為還款
+              </button>
+            </div>
+          </div>
+        </div>
+      </transition>
+
+      <!-- 原本的「記一筆」Modal -->
       <transition name="fade">
-        <div v-if="showModal" class="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-0 sm:p-4">
+        <div v-if="showModal" class="fixed inset-0 z-[70] flex items-end justify-center sm:items-center p-0 sm:p-4">
           <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" @click="closeModal()"></div>
           <div class="bg-zinc-900 w-full max-w-md rounded-t-xl sm:rounded-xl border border-zinc-800 shadow-2xl relative z-10 max-h-[95vh] overflow-y-auto">
             <div class="sticky top-0 bg-zinc-900/95 backdrop-blur border-b border-zinc-800 px-4 py-3 flex justify-between items-center z-20">
@@ -316,8 +360,9 @@
         </div>
       </transition>
 
+      <!-- 團購 Modal 略，維持原樣 -->
       <transition name="fade">
-        <div v-if="showBatchModal" class="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-0 sm:p-4">
+        <div v-if="showBatchModal" class="fixed inset-0 z-[70] flex items-end justify-center sm:items-center p-0 sm:p-4">
           <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" @click="closeBatchModal()"></div>
           <div class="bg-zinc-900 w-full max-w-3xl rounded-t-xl sm:rounded-xl border border-zinc-800 shadow-2xl relative z-10 max-h-[95vh] flex flex-col">
             
@@ -330,7 +375,6 @@
             </div>
 
             <div class="overflow-y-auto p-5 space-y-6">
-              
               <div class="bg-zinc-950/50 p-4 rounded-xl border border-zinc-800/50 space-y-3">
                 <div class="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">統一設定</div>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -368,31 +412,24 @@
                 </div>
 
                 <div v-for="(item, index) in batchList" :key="index" class="bg-zinc-900 border border-zinc-800 p-3 rounded-lg relative group">
-                  
                   <button @click="removeBatchRow(index)" class="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-rose-500 sm:hidden z-10 w-8 h-8 flex items-center justify-center">
                     <i class="fa-solid fa-trash"></i>
                   </button>
-
                   <div class="grid grid-cols-12 gap-2 sm:gap-3 items-center pr-8 sm:pr-0">
-                    
                     <div class="col-span-8 sm:col-span-3">
                       <input v-model="item.name" type="text" placeholder="品項" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm text-white focus:border-emerald-500 outline-none">
                     </div>
-                    
                     <div class="col-span-4 sm:col-span-2">
                       <input v-model.number="item.amount" type="number" placeholder="$" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm text-white font-mono focus:border-emerald-500 outline-none">
                     </div>
-
                     <div class="col-span-7 sm:col-span-3">
                       <input v-model="item.note" type="text" placeholder="備註 (選填)" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm text-zinc-400 focus:border-emerald-500 outline-none">
                     </div>
-
                     <div class="col-span-5 sm:col-span-3">
                       <select v-model="item.owner" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm text-white focus:border-emerald-500 outline-none">
                         <option v-for="p in memberList" :value="p">{{ p }}</option>
                       </select>
                     </div>
-
                     <div class="hidden sm:flex col-span-1 justify-center">
                       <button @click="removeBatchRow(index)" class="w-8 h-8 rounded hover:bg-rose-950/30 text-zinc-600 hover:text-rose-500 transition flex items-center justify-center">
                         <i class="fa-solid fa-trash"></i>
@@ -401,7 +438,6 @@
                   </div>
                 </div>
               </div>
-
             </div>
 
             <div class="border-t border-zinc-800 bg-zinc-900/95 p-4 flex justify-between items-center shrink-0 rounded-b-xl">
@@ -413,7 +449,6 @@
                 儲存 {{ batchList.length }} 筆紀錄
               </button>
             </div>
-
           </div>
         </div>
       </transition>
@@ -421,426 +456,511 @@
     </div>
 
     <script>
-     const { createApp, ref, computed, onMounted } = Vue;
+      const { createApp, ref, computed, onMounted, watch } = Vue;
 
-    createApp({
-      setup() {
-        const sortOrder = ref('desc');
-        const toggleSort = () => { sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'; };
-    
-        const filterBank = ref("全部");
-        const bankFilterOptions = computed(() => ["全部", ...bankList.value]);
-    
-        // === 拖曳滾動相關邏輯 ===
-        const scrollContainer = ref(null);
-        const isDragging = ref(false);
-        const startX = ref(0);
-        const scrollLeft = ref(0);
-    
-        const startDrag = (e) => {
-          isDragging.value = true;
-          startX.value = e.pageX - scrollContainer.value.offsetLeft;
-          scrollLeft.value = scrollContainer.value.scrollLeft;
-        };
-        const stopDrag = () => { isDragging.value = false; };
-        const doDrag = (e) => {
-          if (!isDragging.value) return;
-          e.preventDefault();
-          const x = e.pageX - scrollContainer.value.offsetLeft;
-          const walk = (x - startX.value) * 2;
-          scrollContainer.value.scrollLeft = scrollLeft.value - walk;
-        };
-    
-        const filteredItems = computed(() => {
-          let list = items.value.filter(i => i.item && i.item.toString().trim() !== "");
-          if (activeTab.value !== "全部") {
-            list = list.filter(i => i.payer === activeTab.value || i.sharedWith.includes(activeTab.value));
-          }
-          if (filterBank.value !== "全部") {
-            list = list.filter(i => i.paymentMethod === filterBank.value);
-          }
-          return list.sort((a, b) => {
-            const dateA = new Date(a.date).getTime();
-            const dateB = new Date(b.date).getTime();
-            if (dateA === dateB) {
-                const idA = String(a.id);
-                const idB = String(b.id);
-                return sortOrder.value === 'desc' ? idB.localeCompare(idA) : idA.localeCompare(idB);
+      createApp({
+        setup() {
+          const sortOrder = ref('desc');
+          const toggleSort = () => { sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'; };
+
+          const filterBank = ref("全部");
+          const bankFilterOptions = computed(() => ["全部", ...bankList.value]);
+
+          // === 拖曳滾動相關邏輯 ===
+          const scrollContainer = ref(null);
+          const isDragging = ref(false);
+          const startX = ref(0);
+          const scrollLeft = ref(0);
+
+          const startDrag = (e) => {
+            isDragging.value = true;
+            startX.value = e.pageX - scrollContainer.value.offsetLeft;
+            scrollLeft.value = scrollContainer.value.scrollLeft;
+          };
+          const stopDrag = () => { isDragging.value = false; };
+          const doDrag = (e) => {
+            if (!isDragging.value) return;
+            e.preventDefault();
+            const x = e.pageX - scrollContainer.value.offsetLeft;
+            const walk = (x - startX.value) * 2;
+            scrollContainer.value.scrollLeft = scrollLeft.value - walk;
+          };
+
+          const filteredItems = computed(() => {
+            let list = items.value.filter(i => i.item && i.item.toString().trim() !== "");
+            if (activeTab.value !== "全部") {
+              list = list.filter(i => i.payer === activeTab.value || i.sharedWith.includes(activeTab.value));
             }
-            return sortOrder.value === 'desc' ? dateB - dateA : dateA - dateB;
+            if (filterBank.value !== "全部") {
+              list = list.filter(i => i.paymentMethod === filterBank.value);
+            }
+            return list.sort((a, b) => {
+              const dateA = new Date(a.date).getTime();
+              const dateB = new Date(b.date).getTime();
+              if (dateA === dateB) {
+                  const idA = String(a.id);
+                  const idB = String(b.id);
+                  return sortOrder.value === 'desc' ? idB.localeCompare(idA) : idA.localeCompare(idB);
+              }
+              return sortOrder.value === 'desc' ? dateB - dateA : dateA - dateB;
+            });
           });
-        });
-    
-        const getTodayDate = () => {
-          const d = new Date();
-          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        };
-        
-        // ⚠️ 請確認這裡是你的正確 API URL
-        const API_URL = "https://script.google.com/macros/s/AKfycbw-0HUE3onUx_mMHa8JCEFkdXQAUArFBtu9EZFmk3qMQAqydnB5e-6CHGPbk0rFyYpbyA/exec";
-    
-        const payerList = ref([]);
-        const memberList = ref([]);
-        const categoryList = ref([]);
-        const bankList = ref([]);
-    
-        const items = ref([]);
-        const isInitializing = ref(true);
-        const isLoading = ref(false);
-        const isSaving = ref(false);
-        const showModal = ref(false);
-        const showBatchModal = ref(false); 
-        const isEditing = ref(false);
-        const activeTab = ref("全部");
-    
-        const defaultForm = {
-          id: null, item: "", date: getTodayDate(), amount: 0, payer: "", sharedWith: [], paidBy: [],
-          category: "", paymentMethod: "", note: ""
-        };
-        const form = ref({ ...defaultForm });
-    
-        const batchForm = ref({ date: getTodayDate(), payer: "", category: "", paymentMethod: "現金" });
-        const batchList = ref([]); 
-    
-        const getPassword = () => {
-          const STORAGE_KEY = "nio_splitwise_secret";
-          let pwd = localStorage.getItem(STORAGE_KEY);
-          if (!pwd) {
-            pwd = prompt("請輸入管理員密碼：");
-            if (pwd) localStorage.setItem(STORAGE_KEY, pwd);
-          }
-          return pwd;
-        };
-    
-        const calcMyPay = computed(() => {
-          if (!form.value.amount || form.value.sharedWith.length === 0) return 0;
-          const unitPrice = Math.round(form.value.amount / form.value.sharedWith.length);
-          return form.value.sharedWith.includes("Nio") ? unitPrice : 0;
-        });
-    
-        const calcMyReceive = computed(() => {
-          if (!form.value.amount || form.value.sharedWith.length === 0) return 0;
-          if (form.value.payer === "Nio") {
-             let receivable = form.value.amount;
-             if (form.value.sharedWith.includes("Nio")) {
-                receivable -= Math.round(form.value.amount / form.value.sharedWith.length);
-             }
-             return receivable > 0 ? receivable : 0;
-          }
-          return 0;
-        });
-    
-        const batchTotal = computed(() => batchList.value.reduce((sum, item) => sum + (Number(item.amount) || 0), 0));
-        const personTabs = computed(() => ["全部", ...memberList.value]);
-    
-        const summary = computed(() => {
-          const list = filteredItems.value;
-          let totalMyPay = 0;
-          let totalMyReceive = 0;
-    
-          if (activeTab.value === "全部" || activeTab.value === "Nio") {
-             totalMyPay = list.reduce((sum, i) => sum + (Number(i.myPay) || 0), 0);
-             totalMyReceive = list.reduce((sum, i) => i.payer === "Nio" ? sum + (Number(i.myReceive) || 0) : sum, 0);
-          } else {
-             const targetPerson = activeTab.value;
-             list.forEach(item => {
-                const unitPrice = Math.round(item.amount / (item.sharedWith.length || 1));
-                if (item.payer === targetPerson && item.sharedWith.includes("Nio")) totalMyPay += unitPrice;
-                if (item.payer === "Nio" && item.sharedWith.includes(targetPerson)) totalMyReceive += unitPrice;
-             });
-          }
-          return { totalMyPay, totalMyReceive };
-        });
-    
-        const toggleShared = (name) => {
-          const idx = form.value.sharedWith.indexOf(name);
-          if (idx === -1) form.value.sharedWith.push(name); else form.value.sharedWith.splice(idx, 1);
-        };
-    
-        const togglePaidBy = (name) => {
-          if (!form.value.paidBy) form.value.paidBy = [];
-          const idx = form.value.paidBy.indexOf(name);
-          if (idx === -1) form.value.paidBy.push(name); else form.value.paidBy.splice(idx, 1);
-        };
-    
-        const sheetList = ref([]);
-        const currentSheet = ref(""); 
-    
-        // === 🚀 核心優化：合併讀取設定與資料 ===
-        const fetchInitData = async () => {
-          isInitializing.value = true;
-          try {
-            const url = `${API_URL}?action=init&sheetName=${encodeURIComponent(currentSheet.value)}`;
-            const res = await fetch(url);
-            const result = await res.json();
-            
-            // 解析設定
-            if (result.settings) {
-              if (result.settings.sheets) {
-                 sheetList.value = result.settings.sheets;
-                 if (!currentSheet.value && sheetList.value.length > 0) currentSheet.value = sheetList.value[0];
-              }
-              if (result.settings.payers) payerList.value = result.settings.payers;
-              if (result.settings.members) memberList.value = result.settings.members;
-              if (result.settings.categories) categoryList.value = result.settings.categories;
-              if (result.settings.banks) bankList.value = result.settings.banks;
-    
-              if (payerList.value.length > 0) {
-                defaultForm.payer = payerList.value[0];
-                batchForm.value.payer = payerList.value[0];
-              }
-              if (categoryList.value.length > 0) {
-                defaultForm.category = categoryList.value[0];
-                batchForm.value.category = categoryList.value[0]; 
-              }
-              if (bankList.value.length > 0) defaultForm.paymentMethod = bankList.value[0];
+
+          const getTodayDate = () => {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          };
+          
+          // ⚠️ 請確認這裡是你的正確 API URL
+          const API_URL = "https://script.google.com/macros/s/AKfycbw-0HUE3onUx_mMHa8JCEFkdXQAUArFBtu9EZFmk3qMQAqydnB5e-6CHGPbk0rFyYpbyA/exec";
+
+          const payerList = ref([]);
+          const memberList = ref([]);
+          const categoryList = ref([]);
+          const bankList = ref([]);
+
+          const items = ref([]);
+          const isInitializing = ref(true);
+          const isLoading = ref(false);
+          const isSaving = ref(false);
+          const showModal = ref(false);
+          const showBatchModal = ref(false); 
+          const isEditing = ref(false);
+          const activeTab = ref("全部");
+
+          // === 🚀 批次編輯狀態與邏輯 ===
+          const isBatchMode = ref(false);
+          const selectedIds = ref([]);
+          const batchActionPerson = ref("");
+
+          const toggleBatchMode = () => {
+            isBatchMode.value = !isBatchMode.value;
+            if (isBatchMode.value) {
+                selectedIds.value = [];
+                // 如果目前在某個人的分頁，直接預設還款對象是他
+                if (activeTab.value !== '全部' && activeTab.value !== 'Nio') {
+                    batchActionPerson.value = activeTab.value;
+                } else {
+                    batchActionPerson.value = "";
+                }
+            } else {
+                selectedIds.value = [];
             }
-    
-            // 解析資料
-            if (result.data) {
-              items.value = result.data;
+          };
+
+          // 點擊卡片時，如果有開啟批次模式，則自動勾選/取消
+          const toggleSelection = (id) => {
+             const idx = selectedIds.value.indexOf(id);
+             if (idx > -1) selectedIds.value.splice(idx, 1);
+             else selectedIds.value.push(id);
+          };
+
+          const isAllSelected = computed(() => {
+              return filteredItems.value.length > 0 && selectedIds.value.length === filteredItems.value.length;
+          });
+
+          const toggleSelectAll = () => {
+              if (isAllSelected.value) {
+                  selectedIds.value = [];
+              } else {
+                  selectedIds.value = filteredItems.value.map(i => i.id);
+              }
+          };
+
+          // 切換分頁或篩選時，自動清空選取
+          watch([activeTab, filterBank], () => {
+              if (isBatchMode.value) {
+                  selectedIds.value = [];
+                  if (activeTab.value !== '全部' && activeTab.value !== 'Nio') {
+                      batchActionPerson.value = activeTab.value;
+                  }
+              }
+          });
+
+          const executeBatchPaid = async () => {
+              if (selectedIds.value.length === 0) {
+                  alert("請先選擇要更新的帳務");
+                  return;
+              }
+              if (!batchActionPerson.value) {
+                  alert("請選擇還款對象");
+                  return;
+              }
+              if (!confirm(`確定將選取的 ${selectedIds.value.length} 筆帳務設為「${batchActionPerson.value}」已還款？`)) return;
+
+              const userPassword = getPassword();
+              if (!userPassword) return;
+
+              isSaving.value = true;
+              
+              // 樂觀更新前端資料
+              selectedIds.value.forEach(id => {
+                  const item = items.value.find(i => i.id === id);
+                  if (item) {
+                      if (!Array.isArray(item.paidBy)) item.paidBy = [];
+                      if (!item.paidBy.includes(batchActionPerson.value)) {
+                          item.paidBy.push(batchActionPerson.value);
+                      }
+                  }
+              });
+
+              // 儲存至後端
+              try {
+                  const payload = { auth: userPassword, action: "save", data: items.value, sheetName: currentSheet.value };
+                  const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+                  const result = await res.json();
+                  
+                  if (result.status === "error" && result.message.includes("密碼")) {
+                      localStorage.removeItem("nio_splitwise_secret");
+                      alert("密碼錯誤，請重新操作");
+                      await fetchInitData();
+                  } else {
+                      // 成功後退出批次模式
+                      isBatchMode.value = false;
+                      selectedIds.value = [];
+                  }
+              } catch (e) { 
+                  alert("儲存失敗"); 
+                  await fetchInitData(); 
+              } finally { 
+                  isSaving.value = false; 
+              }
+          };
+          // ==============================
+
+          const defaultForm = {
+            id: null, item: "", date: getTodayDate(), amount: 0, payer: "", sharedWith: [], paidBy: [],
+            category: "", paymentMethod: "", note: ""
+          };
+          const form = ref({ ...defaultForm });
+
+          const batchForm = ref({ date: getTodayDate(), payer: "", category: "", paymentMethod: "現金" });
+          const batchList = ref([]); 
+
+          const getPassword = () => {
+            const STORAGE_KEY = "nio_splitwise_secret";
+            let pwd = localStorage.getItem(STORAGE_KEY);
+            if (!pwd) {
+              pwd = prompt("請輸入管理員密碼：");
+              if (pwd) localStorage.setItem(STORAGE_KEY, pwd);
             }
-    
-          } catch (e) {
-            console.error("初始化失敗", e);
-            alert("讀取失敗，請檢查網路");
-          } finally { 
-             isInitializing.value = false; 
-          }
-        };
-    
-        const changeSheet = async (newSheet) => {
-           if (newSheet === currentSheet.value) return;
-           currentSheet.value = newSheet;
-           items.value = []; 
-           await fetchInitData(); // 切換分頁時一次拿回所有資料
-        };
-        
-        const createNewSheet = async () => {
-           const name = prompt("請輸入新分頁名稱 (例如: 2026-02)：");
-           if (!name) return;
-           const userPassword = getPassword();
-           if (!userPassword) return;
-    
-           isInitializing.value = true;
-           try {
-              const payload = { auth: userPassword, action: "create_sheet", newSheetName: name, sheetName: currentSheet.value };
-              const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+            return pwd;
+          };
+
+          const calcMyPay = computed(() => {
+            if (!form.value.amount || form.value.sharedWith.length === 0) return 0;
+            const unitPrice = Math.round(form.value.amount / form.value.sharedWith.length);
+            return form.value.sharedWith.includes("Nio") ? unitPrice : 0;
+          });
+
+          const calcMyReceive = computed(() => {
+            if (!form.value.amount || form.value.sharedWith.length === 0) return 0;
+            if (form.value.payer === "Nio") {
+               let receivable = form.value.amount;
+               if (form.value.sharedWith.includes("Nio")) {
+                  receivable -= Math.round(form.value.amount / form.value.sharedWith.length);
+               }
+               return receivable > 0 ? receivable : 0;
+            }
+            return 0;
+          });
+
+          const batchTotal = computed(() => batchList.value.reduce((sum, item) => sum + (Number(item.amount) || 0), 0));
+          const personTabs = computed(() => ["全部", ...memberList.value]);
+
+          const summary = computed(() => {
+            const list = filteredItems.value;
+            let totalMyPay = 0;
+            let totalMyReceive = 0;
+
+            if (activeTab.value === "全部" || activeTab.value === "Nio") {
+               totalMyPay = list.reduce((sum, i) => sum + (Number(i.myPay) || 0), 0);
+               totalMyReceive = list.reduce((sum, i) => i.payer === "Nio" ? sum + (Number(i.myReceive) || 0) : sum, 0);
+            } else {
+               const targetPerson = activeTab.value;
+               list.forEach(item => {
+                  const unitPrice = Math.round(item.amount / (item.sharedWith.length || 1));
+                  if (item.payer === targetPerson && item.sharedWith.includes("Nio")) totalMyPay += unitPrice;
+                  if (item.payer === "Nio" && item.sharedWith.includes(targetPerson)) totalMyReceive += unitPrice;
+               });
+            }
+            return { totalMyPay, totalMyReceive };
+          });
+
+          const toggleShared = (name) => {
+            const idx = form.value.sharedWith.indexOf(name);
+            if (idx === -1) form.value.sharedWith.push(name); else form.value.sharedWith.splice(idx, 1);
+          };
+
+          const togglePaidBy = (name) => {
+            if (!form.value.paidBy) form.value.paidBy = [];
+            const idx = form.value.paidBy.indexOf(name);
+            if (idx === -1) form.value.paidBy.push(name); else form.value.paidBy.splice(idx, 1);
+          };
+
+          const sheetList = ref([]);
+          const currentSheet = ref(""); 
+
+          const fetchInitData = async () => {
+            isInitializing.value = true;
+            try {
+              const url = `${API_URL}?action=init&sheetName=${encodeURIComponent(currentSheet.value)}`;
+              const res = await fetch(url);
               const result = await res.json();
               
-              if (result.status === "success") {
-                 alert("建立成功！");
-                 sheetList.value = result.sheets; 
-                 currentSheet.value = name; 
-                 items.value = []; 
-                 await fetchInitData();
-              } else {
-                 alert("建立失敗：" + (result.message || "未知錯誤"));
-                 isInitializing.value = false;
+              if (result.settings) {
+                if (result.settings.sheets) {
+                   sheetList.value = result.settings.sheets;
+                   if (!currentSheet.value && sheetList.value.length > 0) currentSheet.value = sheetList.value[0];
+                }
+                if (result.settings.payers) payerList.value = result.settings.payers;
+                if (result.settings.members) memberList.value = result.settings.members;
+                if (result.settings.categories) categoryList.value = result.settings.categories;
+                if (result.settings.banks) bankList.value = result.settings.banks;
+
+                if (payerList.value.length > 0) {
+                  defaultForm.payer = payerList.value[0];
+                  batchForm.value.payer = payerList.value[0];
+                }
+                if (categoryList.value.length > 0) {
+                  defaultForm.category = categoryList.value[0];
+                  batchForm.value.category = categoryList.value[0]; 
+                }
+                if (bankList.value.length > 0) defaultForm.paymentMethod = bankList.value[0];
               }
-           } catch(e) {
-              alert("建立請求失敗");
-              isInitializing.value = false;
-           }
-        };
-    
-        const closeModal = () => { showModal.value = false; };
-        const closeBatchModal = () => { showBatchModal.value = false; };
-        
-        const openBatchModal = () => { 
-          batchForm.value.date = getTodayDate();
-          if(categoryList.value.length > 0) batchForm.value.category = categoryList.value[0];
-          const defaultOwner = memberList.value.length > 0 ? memberList.value[0] : "";
-          batchList.value = [
-            { name: "", amount: null, owner: defaultOwner, note: "" },
-            { name: "", amount: null, owner: defaultOwner, note: "" }
-          ];
-          showBatchModal.value = true; 
-        };
-    
-        const addBatchRow = () => { 
-           const defaultOwner = memberList.value.length > 0 ? memberList.value[0] : "";
-           batchList.value.push({ name: "", amount: null, owner: defaultOwner, note: "" }); 
-        };
-        const removeBatchRow = (idx) => { if(batchList.value.length > 1) batchList.value.splice(idx, 1); };
-        
-        const saveBatch = async () => {
-          if (isSaving.value) return; // 防止連點
-          const validItems = batchList.value.filter(i => i.name && i.amount && i.owner);
-          if (validItems.length === 0) { alert("請至少輸入一筆完整的明細"); return; }
-    
-          const userPassword = getPassword();
-          if (!userPassword) return;
-    
-          const newRecords = validItems.map(detail => {
-            let myPay = 0, myReceive = 0;
-            const isPayerMe = batchForm.value.payer === "Nio";
-            const isOwnerMe = detail.owner === "Nio";
-    
-            if (isOwnerMe) myPay = detail.amount;
-            if (isPayerMe && !isOwnerMe) myReceive = detail.amount;
-    
-            return {
-              id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-              date: batchForm.value.date, item: detail.name, amount: detail.amount,
-              payer: batchForm.value.payer, sharedWith: [detail.owner], paidBy: [], 
-              category: batchForm.value.category, paymentMethod: batchForm.value.paymentMethod,
-              note: detail.note || "", myPay: myPay, myReceive: myReceive
-            };
-          });
-    
-          isSaving.value = true;
-          items.value.unshift(...newRecords); 
-          closeBatchModal();
-    
-          try {
-            const payload = { auth: userPassword, action: "save", data: items.value, sheetName: currentSheet.value };
-            const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-            const result = await res.json();
-            if (result.status === "error" && result.message.includes("密碼")) {
-              localStorage.removeItem("nio_splitwise_secret");
-              alert("密碼錯誤，請重新操作");
-              await fetchInitData();
+
+              if (result.data) {
+                items.value = result.data;
+              }
+
+            } catch (e) {
+              console.error("初始化失敗", e);
+              alert("讀取失敗，請檢查網路");
+            } finally { 
+               isInitializing.value = false; 
             }
-          } catch (e) { alert("儲存失敗"); await fetchInitData(); } finally { isSaving.value = false; }
-        };
-    
-        const saveItem = async () => {
-          if (isSaving.value) return; // 防止連點
-          const userPassword = getPassword();
-          if (!userPassword) return;
-          form.value.myPay = calcMyPay.value;
-          form.value.myReceive = calcMyReceive.value;
-          isSaving.value = true;
+          };
+
+          const changeSheet = async (newSheet) => {
+             if (newSheet === currentSheet.value) return;
+             currentSheet.value = newSheet;
+             items.value = []; 
+             await fetchInitData(); 
+          };
           
-          try {
-            const payload = { auth: userPassword, action: "save", data: isEditing.value ? items.value.map(i => i.id === form.value.id ? form.value : i) : [form.value, ...items.value], sheetName: currentSheet.value };
-            
-            // 樂觀更新前端畫面
-            if (isEditing.value) {
-              const idx = items.value.findIndex(i => i.id === form.value.id);
-              if (idx !== -1) items.value[idx] = { ...form.value };
-            } else {
-              form.value.id = Date.now().toString();
-              items.value.unshift({ ...form.value });
-            }
-            closeModal();
-            
-            const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-            const result = await res.json();
-            if (result.status === "error" && result.message && result.message.includes("密碼")) {
-              localStorage.removeItem("nio_splitwise_secret");
-              alert("密碼錯誤，請重新操作");
-              await fetchInitData();
-            }
-          } catch (e) { alert("儲存失敗"); await fetchInitData(); } finally { isSaving.value = false; }
-        };
-    
-        const openModal = () => {
-          isEditing.value = false;
-          form.value = { 
-              ...defaultForm, date: getTodayDate(), sharedWith: [], paidBy: [],
-              payer: form.value.payer || (payerList.value[0] || ""),
-              category: form.value.category || (categoryList.value[0] || ""),
-              paymentMethod: form.value.paymentMethod || (bankList.value[0] || "")
-          }; 
-          showModal.value = true;
-        };
-    
-        const editItem = (item) => {
-          isEditing.value = true;
-          const data = JSON.parse(JSON.stringify(item));
-          if (!Array.isArray(data.paidBy)) data.paidBy = []; 
-          form.value = data;
-          showModal.value = true;
-        };
-    
-        const deleteItem = async (id) => {
-          if (isSaving.value) return; // 防止連點
-          if (!confirm("確定刪除?")) return;
-          const userPassword = getPassword();
-          if (!userPassword) return;
+          const createNewSheet = async () => {
+             const name = prompt("請輸入新分頁名稱 (例如: 2026-02)：");
+             if (!name) return;
+             const userPassword = getPassword();
+             if (!userPassword) return;
+
+             isInitializing.value = true;
+             try {
+                const payload = { auth: userPassword, action: "create_sheet", newSheetName: name, sheetName: currentSheet.value };
+                const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+                const result = await res.json();
+                
+                if (result.status === "success") {
+                   alert("建立成功！");
+                   sheetList.value = result.sheets; 
+                   currentSheet.value = name; 
+                   items.value = []; 
+                   await fetchInitData();
+                } else {
+                   alert("建立失敗：" + (result.message || "未知錯誤"));
+                   isInitializing.value = false;
+                }
+             } catch(e) {
+                alert("建立請求失敗");
+                isInitializing.value = false;
+             }
+          };
+
+          const closeModal = () => { showModal.value = false; };
+          const closeBatchModal = () => { showBatchModal.value = false; };
           
-          const originalItems = [...items.value];
-          items.value = items.value.filter(i => i.id !== id);
-          closeModal(); 
-          isSaving.value = true;
+          const openBatchModal = () => { 
+            batchForm.value.date = getTodayDate();
+            if(categoryList.value.length > 0) batchForm.value.category = categoryList.value[0];
+            const defaultOwner = memberList.value.length > 0 ? memberList.value[0] : "";
+            batchList.value = [
+              { name: "", amount: null, owner: defaultOwner, note: "" },
+              { name: "", amount: null, owner: defaultOwner, note: "" }
+            ];
+            showBatchModal.value = true; 
+          };
+
+          const addBatchRow = () => { 
+             const defaultOwner = memberList.value.length > 0 ? memberList.value[0] : "";
+             batchList.value.push({ name: "", amount: null, owner: defaultOwner, note: "" }); 
+          };
+          const removeBatchRow = (idx) => { if(batchList.value.length > 1) batchList.value.splice(idx, 1); };
           
-          try {
-            const payload = { auth: userPassword, action: "save", data: items.value, sheetName: currentSheet.value };
-            const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-            const result = await res.json();
-            if (result.status === "error") {
-              if (result.message.includes("密碼")) {
+          const saveBatch = async () => {
+            if (isSaving.value) return; 
+            const validItems = batchList.value.filter(i => i.name && i.amount && i.owner);
+            if (validItems.length === 0) { alert("請至少輸入一筆完整的明細"); return; }
+
+            const userPassword = getPassword();
+            if (!userPassword) return;
+
+            const newRecords = validItems.map(detail => {
+              let myPay = 0, myReceive = 0;
+              const isPayerMe = batchForm.value.payer === "Nio";
+              const isOwnerMe = detail.owner === "Nio";
+
+              if (isOwnerMe) myPay = detail.amount;
+              if (isPayerMe && !isOwnerMe) myReceive = detail.amount;
+
+              return {
+                id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                date: batchForm.value.date, item: detail.name, amount: detail.amount,
+                payer: batchForm.value.payer, sharedWith: [detail.owner], paidBy: [], 
+                category: batchForm.value.category, paymentMethod: batchForm.value.paymentMethod,
+                note: detail.note || "", myPay: myPay, myReceive: myReceive
+              };
+            });
+
+            isSaving.value = true;
+            items.value.unshift(...newRecords); 
+            closeBatchModal();
+
+            try {
+              const payload = { auth: userPassword, action: "save", data: items.value, sheetName: currentSheet.value };
+              const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+              const result = await res.json();
+              if (result.status === "error" && result.message.includes("密碼")) {
                 localStorage.removeItem("nio_splitwise_secret");
-                alert("密碼錯誤");
+                alert("密碼錯誤，請重新操作");
+                await fetchInitData();
               }
-              items.value = originalItems;
+            } catch (e) { alert("儲存失敗"); await fetchInitData(); } finally { isSaving.value = false; }
+          };
+
+          const saveItem = async () => {
+            if (isSaving.value) return;
+            const userPassword = getPassword();
+            if (!userPassword) return;
+            form.value.myPay = calcMyPay.value;
+            form.value.myReceive = calcMyReceive.value;
+            isSaving.value = true;
+            
+            try {
+              const payload = { auth: userPassword, action: "save", data: isEditing.value ? items.value.map(i => i.id === form.value.id ? form.value : i) : [form.value, ...items.value], sheetName: currentSheet.value };
+              
+              if (isEditing.value) {
+                const idx = items.value.findIndex(i => i.id === form.value.id);
+                if (idx !== -1) items.value[idx] = { ...form.value };
+              } else {
+                form.value.id = Date.now().toString();
+                items.value.unshift({ ...form.value });
+              }
+              closeModal();
+              
+              const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+              const result = await res.json();
+              if (result.status === "error" && result.message && result.message.includes("密碼")) {
+                localStorage.removeItem("nio_splitwise_secret");
+                alert("密碼錯誤，請重新操作");
+                await fetchInitData();
+              }
+            } catch (e) { alert("儲存失敗"); await fetchInitData(); } finally { isSaving.value = false; }
+          };
+
+          const openModal = () => {
+            isEditing.value = false;
+            form.value = { 
+                ...defaultForm, date: getTodayDate(), sharedWith: [], paidBy: [],
+                payer: form.value.payer || (payerList.value[0] || ""),
+                category: form.value.category || (categoryList.value[0] || ""),
+                paymentMethod: form.value.paymentMethod || (bankList.value[0] || "")
+            }; 
+            showModal.value = true;
+          };
+
+          const editItem = (item) => {
+            isEditing.value = true;
+            const data = JSON.parse(JSON.stringify(item));
+            if (!Array.isArray(data.paidBy)) data.paidBy = []; 
+            form.value = data;
+            showModal.value = true;
+          };
+
+          const deleteItem = async (id) => {
+            if (isSaving.value) return; 
+            if (!confirm("確定刪除?")) return;
+            const userPassword = getPassword();
+            if (!userPassword) return;
+            
+            const originalItems = [...items.value];
+            items.value = items.value.filter(i => i.id !== id);
+            closeModal(); 
+            isSaving.value = true;
+            
+            try {
+              const payload = { auth: userPassword, action: "save", data: items.value, sheetName: currentSheet.value };
+              const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+              const result = await res.json();
+              if (result.status === "error") {
+                if (result.message.includes("密碼")) {
+                  localStorage.removeItem("nio_splitwise_secret");
+                  alert("密碼錯誤");
+                }
+                items.value = originalItems;
+              }
+            } catch (e) { alert("刪除失敗"); items.value = originalItems; } finally { isSaving.value = false; }
+          };
+
+          const formatNumber = (n) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+          const exportToExcel = () => {
+            const list = filteredItems.value;
+            const stats = summary.value; 
+
+            if (list.length === 0) {
+              alert("沒有資料可以匯出");
+              return;
             }
-          } catch (e) { alert("刪除失敗"); items.value = originalItems; } finally { isSaving.value = false; }
-        };
-    
-        const formatNumber = (n) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    
-        const exportToExcel = () => {
-          const list = filteredItems.value;
-          const stats = summary.value; 
-    
-          if (list.length === 0) {
-            alert("沒有資料可以匯出");
-            return;
-          }
-    
-          let csvContent = "\uFEFF"; 
-          csvContent += `統計模式,${activeTab.value}\n總應收 (Receive),${stats.totalMyReceive}\n總應付 (Pay),${stats.totalMyPay}\n\n`;
-          csvContent += "日期,付款人,項目,分攤對象,單收金額(每人)\n";
-    
-          list.forEach(item => {
-            const unitPrice = Math.round(item.amount / (item.sharedWith.length || 1));
-            const escape = (txt) => txt ? `"${txt.toString().replace(/"/g, '""')}"` : "";
-            const row = [ `\t${item.date}`, escape(item.payer), escape(item.item), escape(item.sharedWith.join(" & ")), unitPrice ];
-            csvContent += row.join(",") + "\n";
+
+            let csvContent = "\uFEFF"; 
+            csvContent += `統計模式,${activeTab.value}\n總應收 (Receive),${stats.totalMyReceive}\n總應付 (Pay),${stats.totalMyPay}\n\n`;
+            csvContent += "日期,付款人,項目,分攤對象,單收金額(每人)\n";
+
+            list.forEach(item => {
+              const unitPrice = Math.round(item.amount / (item.sharedWith.length || 1));
+              const escape = (txt) => txt ? `"${txt.toString().replace(/"/g, '""')}"` : "";
+              const row = [ `\t${item.date}`, escape(item.payer), escape(item.item), escape(item.sharedWith.join(" & ")), unitPrice ];
+              csvContent += row.join(",") + "\n";
+            });
+
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `帳務匯出_${activeTab.value}_${getTodayDate()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          };
+
+          onMounted(async () => {
+            await fetchInitData();
           });
-    
-          const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-          const link = document.createElement("a");
-          const url = URL.createObjectURL(blob);
-          link.setAttribute("href", url);
-          link.setAttribute("download", `帳務匯出_${activeTab.value}_${getTodayDate()}.csv`);
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        };
-    
-        onMounted(async () => {
-          // 初始化：一次呼叫完成讀取
-          await fetchInitData();
-        });
-    
-        return {
-          items, payerList, memberList, categoryList, bankList,
-          activeTab, personTabs, filteredItems, summary, 
-          showModal, showBatchModal, isEditing, form, batchForm, batchList, batchTotal, 
-          isInitializing, isLoading, isSaving, 
-          toggleShared, togglePaidBy, 
-          saveItem, saveBatch, openModal, openBatchModal, closeBatchModal, addBatchRow, removeBatchRow, 
-          editItem, closeModal, deleteItem, formatNumber, calcMyPay, calcMyReceive, sortOrder, toggleSort,
-          filterBank, bankFilterOptions,
-          scrollContainer, startDrag, stopDrag, doDrag, exportToExcel, sheetList, currentSheet, changeSheet, createNewSheet
-        };
-      }
-    }).mount("#app");
+
+          return {
+            items, payerList, memberList, categoryList, bankList,
+            activeTab, personTabs, filteredItems, summary, 
+            showModal, showBatchModal, isEditing, form, batchForm, batchList, batchTotal, 
+            isInitializing, isLoading, isSaving, 
+            toggleShared, togglePaidBy, 
+            saveItem, saveBatch, openModal, openBatchModal, closeBatchModal, addBatchRow, removeBatchRow, 
+            editItem, closeModal, deleteItem, formatNumber, calcMyPay, calcMyReceive, sortOrder, toggleSort,
+            filterBank, bankFilterOptions,
+            scrollContainer, startDrag, stopDrag, doDrag, exportToExcel, sheetList, currentSheet, changeSheet, createNewSheet,
+            isBatchMode, selectedIds, batchActionPerson, toggleBatchMode, toggleSelection, isAllSelected, toggleSelectAll, executeBatchPaid
+          };
+        }
+      }).mount("#app");
     </script>
   </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
